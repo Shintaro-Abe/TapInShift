@@ -250,3 +250,13 @@ graph TD
 - 共通のデザインシステム（Tailwind CSS）を使用して統一感を保つ
 - セキュリティを考慮したコーディング（XSS対策、入力バリデーションなど）
 - 図表は必要最小限に留め、メンテナンスコストを抑える
+
+## Review guidelines
+
+- レビューは、バグ、回帰、セキュリティ、テスト不足、ドキュメント齟齬を優先して確認する。
+- 実 Excel、SQLite、Slack token、OpenAI API key、Excel password、`config/config.local.json`、`data/` が Git 管理対象に含まれていないことを確認する。
+- Slack UI を変更した場合は、`tests/test_slack_app.py` と実機ランブックの更新を確認する。
+- SQLite スキーマや保存内容を変更した場合は、`tests/test_storage.py` または関連テスト、`scripts/timesheet_tools.py show-db`、ランブックの更新を確認する。
+- Excel 書き込みや日付判定を変更した場合は、`tests/test_excel_writer.py` と実 Excel 検証手順の更新を確認する。
+- `tasklist.md` では、自動テスト済み、実機確認済み、運用判断待ちを混同しない。
+- Codex レビュー方式の詳細は `docs/codex-review-workflow.md` を参照する。

@@ -47,6 +47,7 @@ TapInShift/
 | `docs/repository-structure.md` | リポジトリ構造 |
 | `docs/development-guidelines.md` | 開発ガイドライン |
 | `docs/glossary.md` | 用語定義 |
+| `docs/codex-review-workflow.md` | Codex レビュー方式 |
 
 設計図やダイアグラムは関連する Markdown ファイル内に Mermaid または ASCII で記載する。
 

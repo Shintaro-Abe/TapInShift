@@ -29,6 +29,7 @@
 - Slack UI の `メモ反映` 機能は実機テスト成功確認済み。
 - Slack App Home から丸め単位を選択できる実装を追加済み。
 - 丸め単位の選択値は SQLite の `app_settings` に保存され、以降の出勤・退勤で `config/config.local.json` の `time_rounding.mode` より優先される。
+- SQLite の `app_settings` に `('time_rounding.mode', '30m')` として保存されることを確認済み。
 
 確認済みの DB 例:
 
@@ -86,9 +87,13 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 結果:
 
 ```text
-Ran 29 tests in 0.309s
+Ran 34 tests in 0.344s
 OK
 ```
+
+Codex レビュー方式は `AGENTS.md` の Review guidelines と `docs/codex-review-workflow.md` に整理済み。
+
+レビューで見つかった `show-db` の古い SQLite スキーマ互換性リスクは修正済み。`app_settings` テーブルが未作成の DB でも `show-db` が落ちないようにし、`tests/test_timesheet_tools.py` を追加した。
 
 GitHub `origin/main` へ以下を push 済み。
 
@@ -135,14 +140,20 @@ python scripts\timesheet_tools.py find-date --date 2026-06-27
 
 1. `tasklist.md` のチェック状態を、2026-06-27 の実機成功結果に合わせて更新する。
    - 完了済み。最新の `tasklist.md` は実機成功分と丸め UI 実装分を反映済み。
-2. Slack UI で丸め単位を変更し、`app_settings` に `time_rounding.mode` が保存されることを実機で確認する。
-3. `manual_edits` の最新履歴を `show-db` で確認し、`メモ反映` の成功が `reflected` として残っていることを記録する。
-4. 日付選択から編集モーダルを開き、直接編集保存が期待どおり Excel と SQLite に残ることを確認する。
+2. SQLite で丸め単位の保存結果を確認する。
+   - Slack UI で丸め単位を変更し、以降の出勤・退勤へ適用されることは確認済み。
+   - 完了済み。`app_settings` に `time_rounding.mode = 30m` が保存されていることを確認済み。
+3. `manual_edits` の最新履歴を `show-db` で確認し、`メモ反映` / 編集モーダルの成功が `reflected` として残っていることを記録する。
+   - 完了済み。`manual_edits` に `2026-06-24` / `2026-06-27` の `reflected` 履歴があることを確認済み。
+4. SQLite で編集モーダル保存結果を確認する。
+   - 日付選択から編集モーダルを開き、直接編集保存で Excel へ反映されることは確認済み。
+   - 完了済み。`manual_edits` に手動編集履歴が残っていることを確認済み。
 5. 失敗系を必要範囲で確認する。
-   - 対象日なし
-   - パスワード未設定
-   - 既存セル上書き防止
-   - 分類確認待ち `needs_confirmation`
+   - 対象日なし: 自動テストで確認済み。
+   - 既存セル上書き防止: 実機 DB と自動テストで確認済み。
+   - 分類確認待ち `needs_confirmation`: 自動テストで SQLite 保存を確認済み。
+   - パスワード未設定: 実機 Excel 起動境界のため未確認。
+   - Slack 失敗文言: 自動テストで確認済み。
 6. 複合メモの分離精度を運用判断する。
    - 現状: 金額は `AB` のみに入る。
    - 例: `遅延証明あり 交通費1200円` の文言を `W=遅延証明あり`, `Y=交通費`, `AB=1200` まで分けるかは未判断。

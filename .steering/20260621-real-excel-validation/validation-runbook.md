@@ -626,6 +626,8 @@ SQLite には、成功や失敗の履歴が残る。
 
 ### 推奨: スクリプトで確認する
 
+この方法は Python だけで確認できる。Windows に `sqlite3` コマンドが入っていなくてもよい。
+
 ### Windows PowerShell
 
 ```powershell
@@ -640,7 +642,11 @@ python scripts\timesheet_tools.py show-db --limit 5
 python3 scripts/timesheet_tools.py show-db --limit 5
 ```
 
+`show-db` は `punch_events`、`manual_edits`、`app_settings` を表示する。
+
 ### 手動で確認する場合
+
+`sqlite3` コマンドが使える環境だけで実行する。
 
 ```bash
 sqlite3 data/tapinshift.sqlite3 "SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;"

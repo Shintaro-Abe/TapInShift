@@ -31,12 +31,15 @@ class FakeClassifier:
 
 
 class FakeWriter:
-    def __init__(self) -> None:
+    def __init__(self, write_error: Exception | None = None) -> None:
         self.write_calls = []
         self.update_calls = []
+        self.write_error = write_error
 
     def write_punch(self, **kwargs):
         self.write_calls.append(kwargs)
+        if self.write_error:
+            raise self.write_error
         return type("Result", (), {"reflected_at": kwargs["reflected_time"], "row": 7})()
 
     def update_day(self, **kwargs):
@@ -92,6 +95,35 @@ class PunchServiceTest(unittest.TestCase):
 
             self.assertEqual(event.status, ReflectionStatus.NEEDS_CONFIRMATION)
             self.assertEqual(writer.write_calls, [])
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.status, ReflectionStatus.NEEDS_CONFIRMATION)
+            self.assertIsNone(stored_event.error)
+
+    def test_handle_punch_records_writer_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EventStore(Path(tmp) / "tapinshift.sqlite3")
+            store.initialize()
+            writer = FakeWriter(write_error=ValueError("Cell already has a value: F13"))
+            service = PunchService(
+                config=_config(Path(tmp)),
+                store=store,
+                classifier=FakeClassifier(Classification(None, None, None, 1.0, False)),
+                writer=writer,
+            )
+
+            event = service.handle_punch(
+                slack_event_id="evt-1",
+                slack_user_id="U123",
+                punch_type=PunchType.CLOCK_IN,
+                note="",
+                tapped_at=datetime(2026, 6, 21, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+            )
+
+            self.assertEqual(event.status, ReflectionStatus.FAILED)
+            self.assertEqual(event.error, "Cell already has a value: F13")
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.status, ReflectionStatus.FAILED)
+            self.assertEqual(stored_event.error, "Cell already has a value: F13")
 
     def test_handle_punch_uses_per_punch_rounding_direction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

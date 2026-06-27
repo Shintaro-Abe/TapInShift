@@ -592,12 +592,15 @@ app.quit()</code></pre></div>
 <h2>10. SQLite を確認する</h2>
 <p>SQLite には、成功や失敗の履歴が残る。</p>
 <h3>推奨: スクリプトで確認する</h3>
+<p>この方法は Python だけで確認できる。Windows に <code>sqlite3</code> コマンドが入っていなくてもよい。</p>
 <h3>Windows PowerShell</h3>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-37">コピー</button><pre><code id="code-37" data-lang="powershell">python scripts\timesheet_tools.py show-db --limit 5</code></pre></div>
 <p>実機検証で <code>config/config.local.json</code> の <code>database_path</code> を <code>C:\TapInShiftData\tapinshift.sqlite3</code> にしている場合も、上のコマンドで同じ設定を読み込む。</p>
 <h3>macOS</h3>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-38">コピー</button><pre><code id="code-38" data-lang="bash">python3 scripts/timesheet_tools.py show-db --limit 5</code></pre></div>
+<p><code>show-db</code> は <code>punch_events</code>、<code>manual_edits</code>、<code>app_settings</code> を表示する。</p>
 <h3>手動で確認する場合</h3>
+<p><code>sqlite3</code> コマンドが使える環境だけで実行する。</p>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-39">コピー</button><pre><code id="code-39" data-lang="bash">sqlite3 data/tapinshift.sqlite3 &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
 sqlite3 data/tapinshift.sqlite3 &quot;SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;&quot;
 sqlite3 data/tapinshift.sqlite3 &quot;SELECT key,value FROM app_settings WHERE key=&#x27;time_rounding.mode&#x27;;&quot;</code></pre></div>

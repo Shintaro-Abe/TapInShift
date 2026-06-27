@@ -97,6 +97,18 @@ class ExcelWriterHelperTest(unittest.TestCase):
         self.assertTrue(matches_target_date("27(土)", target, "%Y-%m-%d"))
         self.assertTrue(matches_target_date("6月27日(土)", target, "%Y-%m-%d"))
 
+    def test_find_row_raises_for_missing_target_date(self) -> None:
+        sheet = FakeSheet()
+        sheet.cells = {
+            "L7": FakeCell(25),
+            "L8": FakeCell(26),
+            "L9": FakeCell(27),
+        }
+        writer = ExcelTimesheetWriter(_excel_config())
+
+        with self.assertRaisesRegex(ValueError, "Target date is outside this timesheet period"):
+            writer._find_row(sheet, date(2026, 6, 28))
+
 
 def _excel_config() -> ExcelConfig:
     return ExcelConfig(

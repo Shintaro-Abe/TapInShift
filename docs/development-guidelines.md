@@ -134,7 +134,15 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 - 図表は関連する Markdown 内に直接書く。
 - コードとドキュメントの不一致を残さない。
 
-## 15. セキュリティルール
+## 15. Codex レビュー規約
+
+- コミット前に未コミット差分レビューを行う。
+- レビューでは、バグ、回帰、セキュリティ、テスト不足、ドキュメント齟齬を優先する。
+- PR を使う場合は、必要に応じて GitHub 上で `@codex review` を依頼する。
+- 秘密情報、実 Excel、SQLite、外部連携、ファイル操作に関わる変更では Codex Security plugin の利用を検討する。
+- 詳細手順は `docs/codex-review-workflow.md` に従う。
+
+## 16. セキュリティルール
 
 - 秘密情報をログ、テスト、ドキュメント、コミットに含めない。
 - Slack token、OpenAI API key、Excel password は環境変数で管理する。

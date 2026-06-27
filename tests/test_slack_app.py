@@ -6,9 +6,11 @@ from tapinshift.slack_app import (
     DATE_BLOCK_ID,
     ROUNDING_BLOCK_ID,
     ROUNDING_MODE_ACTION,
+    _event_message,
     _extract_selected_date,
     _home_view,
 )
+from tapinshift.models import ReflectionStatus
 
 
 class SlackAppViewTest(unittest.TestCase):
@@ -61,6 +63,13 @@ class SlackAppViewTest(unittest.TestCase):
         }
 
         self.assertEqual(_extract_selected_date(body), "2026-06-27")
+
+    def test_failed_event_message_mentions_sqlite_and_error(self) -> None:
+        message = _event_message(ReflectionStatus.FAILED, "Cell already has a value: F13")
+
+        self.assertIn("勤務表への反映に失敗しました", message)
+        self.assertIn("SQLite", message)
+        self.assertIn("Cell already has a value: F13", message)
 
 
 if __name__ == "__main__":
