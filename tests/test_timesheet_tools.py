@@ -6,7 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from argparse import Namespace
-from contextlib import redirect_stdout
+from contextlib import closing, redirect_stdout
 from pathlib import Path
 
 from scripts.timesheet_tools import cmd_show_db
@@ -31,9 +31,10 @@ class TimesheetToolsTest(unittest.TestCase):
             config_path = _write_config(Path(tmp))
             db_path = Path(tmp) / "tapinshift.sqlite3"
             _create_legacy_db(db_path)
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
                 conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", ("time_rounding.mode", "30m"))
+                conn.commit()
 
             output = io.StringIO()
             with redirect_stdout(output):
@@ -47,10 +48,11 @@ class TimesheetToolsTest(unittest.TestCase):
             config_path = _write_config(Path(tmp))
             db_path = Path(tmp) / "tapinshift.sqlite3"
             _create_legacy_db(db_path)
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.execute("CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
                 conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", ("time_rounding.mode", "30m"))
                 conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", ("excel.password", "secret"))
+                conn.commit()
 
             output = io.StringIO()
             with redirect_stdout(output):
@@ -70,7 +72,7 @@ def _write_config(base: Path) -> Path:
 
 
 def _create_legacy_db(db_path: Path) -> None:
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.execute(
             """
             CREATE TABLE punch_events (
@@ -92,6 +94,7 @@ def _create_legacy_db(db_path: Path) -> None:
             )
             """
         )
+        conn.commit()
 
 
 if __name__ == "__main__":
