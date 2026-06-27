@@ -24,8 +24,10 @@ from tapinshift.storage import EventStore
 class FakeClassifier:
     def __init__(self, classification: Classification) -> None:
         self.classification = classification
+        self.calls: list[str] = []
 
     def classify(self, note: str) -> Classification:
+        self.calls.append(note)
         return self.classification
 
 
@@ -52,10 +54,11 @@ class PunchServiceTest(unittest.TestCase):
             store = EventStore(Path(tmp) / "tapinshift.sqlite3")
             store.initialize()
             writer = FakeWriter()
+            classifier = FakeClassifier(Classification(None, "新宿駅-渋谷駅", 320, 0.9, False))
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification(None, "新宿駅-渋谷駅", 320, 0.9, False)),
+                classifier=classifier,
                 writer=writer,
             )
 
@@ -63,24 +66,28 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="新宿駅-渋谷駅 320円",
                 tapped_at=datetime(2026, 6, 21, 9, 8, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
             self.assertEqual(event.status, ReflectionStatus.REFLECTED)
             self.assertEqual(len(writer.write_calls), 1)
             self.assertEqual(writer.write_calls[0]["target_date"], date(2026, 6, 21))
-            self.assertEqual(store.get_day_events("2026-06-21")[0].classification.amount, 320)
+            self.assertIsNone(writer.write_calls[0]["classification"])
+            self.assertEqual(classifier.calls, [])
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.note, "")
+            self.assertIsNone(stored_event.classification)
 
-    def test_handle_punch_confirmation_does_not_write_excel(self) -> None:
+    def test_handle_punch_does_not_classify_notes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = EventStore(Path(tmp) / "tapinshift.sqlite3")
             store.initialize()
             writer = FakeWriter()
+            classifier = FakeClassifier(Classification(None, None, None, 0.2, True))
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification(None, None, None, 0.2, True)),
+                classifier=classifier,
                 writer=writer,
             )
 
@@ -88,14 +95,16 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_OUT,
-                note="あとで確認",
                 tapped_at=datetime(2026, 6, 21, 18, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
-            self.assertEqual(event.status, ReflectionStatus.NEEDS_CONFIRMATION)
-            self.assertEqual(writer.write_calls, [])
+            self.assertEqual(event.status, ReflectionStatus.REFLECTED)
+            self.assertEqual(len(writer.write_calls), 1)
+            self.assertIsNone(writer.write_calls[0]["classification"])
+            self.assertEqual(classifier.calls, [])
             stored_event = store.get_day_events("2026-06-21")[0]
-            self.assertEqual(stored_event.status, ReflectionStatus.NEEDS_CONFIRMATION)
+            self.assertEqual(stored_event.status, ReflectionStatus.REFLECTED)
+            self.assertIsNone(stored_event.classification)
             self.assertIsNone(stored_event.error)
 
     def test_handle_punch_records_writer_failure(self) -> None:
@@ -114,7 +123,6 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
@@ -148,14 +156,12 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-in",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 9, 1, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
             service.handle_punch(
                 slack_event_id="evt-out",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_OUT,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 18, 14, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
@@ -188,7 +194,6 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-in",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 9, 1, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 

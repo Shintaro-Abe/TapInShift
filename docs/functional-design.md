@@ -56,22 +56,17 @@ sequenceDiagram
     participant Slack as Slack App Home
     participant Agent as tapinshift-agent
     participant Service as PunchService
-    participant Classifier as RuleBasedClassifier
     participant Store as SQLite
     participant Excel as Excel
 
-    User->>Slack: 任意メモ入力、出勤/退勤/メモ反映ボタン押下
+    User->>Slack: 出勤/退勤ボタン押下
     Slack->>Agent: action payload
     Agent-->>Slack: ack
     Agent->>Service: handle_punch
-    Service->>Classifier: classify(note)
-    Classifier-->>Service: Classification
-    alt 確認不要
-        Service->>Excel: write_punch
+    Service->>Excel: write_punch
+    alt Excel 反映成功
         Excel-->>Service: ExcelWriteResult
         Service->>Store: upsert_event(reflected)
-    else 確認待ち
-        Service->>Store: upsert_event(needs_confirmation)
     else Excel 反映失敗
         Service->>Store: upsert_event(failed)
     end
@@ -142,13 +137,15 @@ sequenceDiagram
 - Slack Bolt App を構築する。
 - App Home、ボタンアクション、日付選択、編集モーダル送信を処理する。
 - 丸め単位の `static_select` を表示し、選択変更を `PunchService` に委譲する。
+- 出勤・退勤ボタンは任意メモ欄を送信せず、メモ分類は `メモ反映` ボタンでのみ実行する。
 - Slack UI は Block Kit のみで構成する。
 - ビジネスロジックは `PunchService` に委譲する。
 
 ### 6.4 `service.py`
 
 - 打刻と編集のアプリケーションサービス。
-- 現在時刻取得、時刻丸め、分類、Excel 書き込み、SQLite 保存を統合する。
+- 打刻では現在時刻取得、時刻丸め、Excel 書き込み、SQLite 保存を統合する。
+- 任意メモ分類は、後追いメモ反映時にだけ実行する。
 - 丸め単位は `EventStore.get_setting("time_rounding.mode")` を優先し、未設定時は `AppConfig.time_rounding.mode` を使う。
 - Excel 反映失敗時も SQLite に状態とエラーを保存する。
 
@@ -279,7 +276,7 @@ erDiagram
 - 出勤は `clock_in` 列へ書く。
 - 退勤は `clock_out` 列へ書く。
 - 対象セルに既存値がある場合は上書きせず失敗にする。
-- 分類結果がある場合、届出内容、経費内容、金額も書く。
+- 任意メモ分類は行わず、届出内容、経費内容、金額は変更しない。
 
 ### 9.3 手動編集時の書き込み
 

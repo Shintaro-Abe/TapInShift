@@ -31,7 +31,6 @@ class PunchService:
         slack_event_id: str,
         slack_user_id: str,
         punch_type: PunchType,
-        note: str,
         tapped_at: datetime | None = None,
     ) -> PunchEvent:
         tapped = tapped_at or datetime.now(self.config.timezone)
@@ -40,26 +39,22 @@ class PunchService:
             mode=self.current_rounding_mode(),
             direction=self.config.time_rounding.direction_for(punch_type.value),
         )
-        classification = self.classifier.classify(note)
         status = ReflectionStatus.PENDING
         error = None
         reflected_at = None
 
-        if classification.needs_confirmation:
-            status = ReflectionStatus.NEEDS_CONFIRMATION
-        else:
-            try:
-                result = self.writer.write_punch(
-                    target_date=tapped.date(),
-                    punch_type=punch_type,
-                    reflected_time=reflected_time,
-                    classification=classification,
-                )
-                status = ReflectionStatus.REFLECTED
-                reflected_at = result.reflected_at
-            except Exception as exc:  # noqa: BLE001 - persisted for operator review.
-                status = ReflectionStatus.FAILED
-                error = str(exc)
+        try:
+            result = self.writer.write_punch(
+                target_date=tapped.date(),
+                punch_type=punch_type,
+                reflected_time=reflected_time,
+                classification=None,
+            )
+            status = ReflectionStatus.REFLECTED
+            reflected_at = result.reflected_at
+        except Exception as exc:  # noqa: BLE001 - persisted for operator review.
+            status = ReflectionStatus.FAILED
+            error = str(exc)
 
         event = PunchEvent(
             slack_event_id=slack_event_id,
@@ -67,8 +62,8 @@ class PunchService:
             punch_type=punch_type,
             tapped_at=tapped,
             reflected_at=reflected_at,
-            note=note,
-            classification=classification,
+            note="",
+            classification=None,
             status=status,
             error=error,
         )

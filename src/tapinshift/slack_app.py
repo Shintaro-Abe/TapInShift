@@ -122,13 +122,11 @@ def build_slack_app(service: PunchService, bot_token: str):
 
 def _handle_punch_action(service: PunchService, body: dict, client, punch_type: PunchType) -> None:
     user_id = body["user"]["id"]
-    note = _extract_note(body)
     event_id = f"{body.get('container', {}).get('view_id', 'home')}:{body['actions'][0]['action_ts']}:{punch_type.value}"
     event = service.handle_punch(
         slack_event_id=event_id,
         slack_user_id=user_id,
         punch_type=punch_type,
-        note=note,
     )
     client.views_publish(
         user_id=user_id,
