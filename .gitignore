@@ -1,0 +1,29 @@
+# Local environment files
+.env
+.env.*
+.venv/
+.venv-*/
+config/config.local.json
+data/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Codex local state if CODEX_HOME is ever pointed into the repository
+.codex/auth.json
+.codex/sessions/
+.codex/logs/
+.codex/packages/
+.codex/.sandbox/
+.codex/.sandbox-secrets/
+
+# Claude Code local state if ~/.claude is ever pointed into the repository
+.claude/.credentials.json
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Gemini CLI local state if ~/.gemini is ever pointed into the repository
+.gemini/
+
+# Optional local diagnostics
+.codex-log/

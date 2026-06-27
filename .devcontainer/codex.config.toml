@@ -1,0 +1,14 @@
+# Copied to ~/.codex/config.toml on first Dev Container creation.
+# Do not put API keys or tokens in this file.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Keep command network access off by default.
+# Codex can ask for approval when a task needs network access.
+[sandbox_workspace_write]
+network_access = false
+
+# モデルは通常、Codex 側のデフォルトに任せます。
+# 固定したい場合のみ、利用可能なモデル名に変更して有効化してください。
+# model = "gpt-5.5"

@@ -1,0 +1,46 @@
+{
+  "timezone": "Asia/Tokyo",
+  "database_path": "../data/tapinshift.sqlite3",
+  "excel": {
+    "path": "../data/private/timesheet.xlsx",
+    "sheet_name": "6",
+    "password_env": "TAPINSHIFT_EXCEL_PASSWORD",
+    "columns": {
+      "table": "B",
+      "attendance": "C",
+      "late": "D",
+      "early": "E",
+      "clock_in": "F",
+      "clock_out": "G",
+      "date": "L",
+      "notice": "W",
+      "expense_item": "Y",
+      "amount": "AB"
+    },
+    "first_data_row": 7,
+    "last_data_row": 37,
+    "date_format": "%Y-%m-%d",
+    "defaults": {
+      "table": 1,
+      "attendance": 1,
+      "late": 0,
+      "early": 0
+    }
+  },
+  "time_rounding": {
+    "mode": "none",
+    "direction": "nearest",
+    "clock_in_direction": "ceil",
+    "clock_out_direction": "floor"
+  },
+  "openai": {
+    "primary_model": "gpt-5.4-nano",
+    "fallback_model": "gpt-5.4-mini",
+    "api_key_env": "OPENAI_API_KEY",
+    "confidence_threshold": 0.75
+  },
+  "slack": {
+    "bot_token_env": "SLACK_BOT_TOKEN",
+    "app_token_env": "SLACK_APP_TOKEN"
+  }
+}

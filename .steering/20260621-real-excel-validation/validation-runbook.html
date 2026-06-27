@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>実機検証ランブック</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+    line-height: 1.7; max-width: 880px; margin: 0 auto; padding: 24px 16px 80px;
+    color: #1f2328; background: #ffffff;
+  }
+  h1 { font-size: 1.7rem; border-bottom: 2px solid #d0d7de; padding-bottom: .3em; }
+  h2 { font-size: 1.35rem; margin-top: 2em; border-bottom: 1px solid #d0d7de; padding-bottom: .2em; }
+  h3 { font-size: 1.1rem; margin-top: 1.6em; }
+  hr { border: none; border-top: 1px solid #d0d7de; margin: 2em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f6f8fa; }
+  blockquote { margin: 1em 0; padding: .4em 1em; border-left: 4px solid #d0d7de; background: #f6f8fa; }
+  code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .9em; }
+  p code, li code, td code { background: #eff1f3; padding: .1em .35em; border-radius: 4px; }
+  .code-wrap { position: relative; margin: 1em 0; }
+  .code-wrap pre {
+    background: #0d1117; color: #e6edf3; padding: 14px 14px; border-radius: 8px;
+    overflow-x: auto; margin: 0;
+  }
+  .code-wrap pre code { background: transparent; padding: 0; color: inherit; }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: .8rem;
+    border: 1px solid #30363d; border-radius: 6px; background: #21262d; color: #e6edf3;
+    cursor: pointer;
+  }
+  .copy-btn:hover { background: #30363d; }
+  .copy-btn.copied { background: #238636; border-color: #238636; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e6edf3; background: #0d1117; }
+    th { background: #161b22; }
+    th, td { border-color: #30363d; }
+    blockquote { background: #161b22; border-left-color: #30363d; }
+    p code, li code, td code { background: #161b22; }
+    h1, h2 { border-color: #30363d; }
+  }
+</style>
+</head>
+<body>
+<h1>実機検証ランブック</h1>
+<h2>目的</h2>
+<p>Windows または macOS の実機で、TapInShift が Slack から Excel 勤務表へ反映できることを確認する。</p>
+<p>この手順は、初めて触る人でも順番に確認できるように書いている。</p>
+<hr>
+<h2>0. 重要ルール</h2>
+<table>
+<thead>
+<tr>
+<th>ルール</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原本の勤務表へ直接書き込まない</td>
+<td>データ破損を防ぐため</td>
+</tr>
+<tr>
+<td>検証用コピーを使う</td>
+<td>失敗しても戻せるようにするため</td>
+</tr>
+<tr>
+<td>パスワードや Slack token はファイルに書かない</td>
+<td>秘密情報の漏えいを防ぐため</td>
+</tr>
+<tr>
+<td><code>config.local.json</code>、Excel、SQLite は Git に入れない</td>
+<td>個人情報・秘密情報を守るため</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>1. 事前に必要なもの</h2>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>必要なもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PC</td>
+<td>Windows または macOS</td>
+</tr>
+<tr>
+<td>Excel</td>
+<td>デスクトップ版 Excel</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>Python 3.11 以上</td>
+</tr>
+<tr>
+<td>Slack</td>
+<td>検証用 Slack ワークスペース</td>
+</tr>
+<tr>
+<td>Slack App</td>
+<td>Socket Mode で動く Slack App</td>
+</tr>
+<tr>
+<td>Excel ファイル</td>
+<td>検証用コピーの勤務表</td>
+</tr>
+<tr>
+<td>秘密情報</td>
+<td>Excel パスワード、Slack bot token、Slack app token</td>
+</tr>
+</tbody>
+</table>
+<h3>1.1 付属スクリプト</h3>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/setup-local.sh</code></td>
+<td>macOS 用の Python 環境作成</td>
+</tr>
+<tr>
+<td><code>scripts/setup-local.ps1</code></td>
+<td>Windows 用の Python 環境作成</td>
+</tr>
+<tr>
+<td><code>scripts/check-local.sh</code></td>
+<td>macOS 用のテスト・設定チェック</td>
+</tr>
+<tr>
+<td><code>scripts/check-local.ps1</code></td>
+<td>Windows 用のテスト・設定チェック</td>
+</tr>
+<tr>
+<td><code>scripts/validate-local.sh</code></td>
+<td>macOS 用の実機検証一括実行</td>
+</tr>
+<tr>
+<td><code>scripts/validate-local.ps1</code></td>
+<td>Windows 用の実機検証一括実行</td>
+</tr>
+<tr>
+<td><code>scripts/timesheet_tools.py</code></td>
+<td>検証用コピー作成、日付列確認、対象日検索、SQLite 確認</td>
+</tr>
+<tr>
+<td><code>slack-app-manifest.example.yml</code></td>
+<td>Slack App 設定のひな形</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>2. Slack UI を使うための準備</h2>
+<p>Slack UI を使うには、Slack App の作成と設定が必要。</p>
+<h3>2.0 マニフェストで一括設定する（推奨）</h3>
+<p>Slack App の設定は、付属のマニフェストで一括投入できる。</p>
+<ol>
+<li>Slack API の App 管理画面を開く。</li>
+<li><code>Create New App</code> を選ぶ。</li>
+<li><code>From an app manifest</code> を選ぶ。</li>
+<li>検証用 Slack ワークスペースを選ぶ。</li>
+<li><code>slack-app-manifest.example.yml</code> の内容を貼り付ける。</li>
+<li>App を作成する。</li>
+</ol>
+<p>これで Socket Mode、App Home、Interactivity、<code>app_home_opened</code>、scope が設定済みになる。</p>
+<p>残りは token の作成（2.2）とインストール（2.7）だけ行う。</p>
+<p>手動で設定する場合は、以下 2.1 以降を順に行う。</p>
+<h3>2.1 Slack App を作成する</h3>
+<ol>
+<li>Slack API の App 管理画面を開く。</li>
+<li><code>Create New App</code> を選ぶ。</li>
+<li><code>From scratch</code> を選ぶ。</li>
+<li>App 名を入力する。例: <code>TapInShift Local</code></li>
+<li>検証用 Slack ワークスペースを選ぶ。</li>
+<li>App を作成する。</li>
+</ol>
+<h3>2.2 Socket Mode を有効にする</h3>
+<ol>
+<li>左メニューの <code>Socket Mode</code> を開く。</li>
+<li><code>Enable Socket Mode</code> をオンにする。</li>
+<li>App-level token を作成する。</li>
+<li>token 名を入力する。例: <code>tapinshift-socket</code></li>
+<li>scope に <code>connections:write</code> を追加する。</li>
+<li>作成された token を控える。</li>
+</ol>
+<p>この token は <code>xapp-...</code> で始まる。</p>
+<p>この値を <code>SLACK_APP_TOKEN</code> として使う。</p>
+<h3>2.3 App Home を有効にする</h3>
+<ol>
+<li>左メニューの <code>App Home</code> を開く。</li>
+<li><code>Home Tab</code> をオンにする。</li>
+<li>必要なら <code>Messages Tab</code> はオフのままでよい。</li>
+</ol>
+<h3>2.4 Interactivity を有効にする</h3>
+<ol>
+<li>左メニューの <code>Interactivity &amp; Shortcuts</code> を開く。</li>
+<li><code>Interactivity</code> をオンにする。</li>
+<li>Socket Mode を使うため、公開 URL は不要。</li>
+<li>保存する。</li>
+</ol>
+<h3>2.5 Event Subscriptions を設定する</h3>
+<ol>
+<li>左メニューの <code>Event Subscriptions</code> を開く。</li>
+<li><code>Enable Events</code> をオンにする。</li>
+<li><code>Subscribe to bot events</code> に次を追加する。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app_home_opened</code></td>
+<td>App Home を表示するため</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>保存する。</li>
+</ol>
+<h3>2.6 Bot token scope を設定する</h3>
+<p>左メニューの <code>OAuth &amp; Permissions</code> を開く。</p>
+<p><code>Bot Token Scopes</code> に次を追加する。</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chat:write</code></td>
+<td>Bot token を発行するための最小 scope として設定する</td>
+</tr>
+</tbody>
+</table>
+<p>App Home の表示とモーダル操作には、通常は追加 scope なしで足りる。</p>
+<p>権限不足のエラーが出た場合は、そのエラー文に従って scope を追加する。</p>
+<h3>2.7 App をワークスペースへインストールする</h3>
+<ol>
+<li><code>OAuth &amp; Permissions</code> を開く。</li>
+<li><code>Install to Workspace</code> を押す。</li>
+<li>許可する。</li>
+<li>Bot User OAuth Token を控える。</li>
+</ol>
+<p>この token は <code>xoxb-...</code> で始まる。</p>
+<p>この値を <code>SLACK_BOT_TOKEN</code> として使う。</p>
+<h3>2.8 Slack 側の確認</h3>
+<p>Slack クライアントで次を確認する。</p>
+<ul>
+<li>App 一覧に作成した App がある。</li>
+<li>App を開くと <code>ホーム</code> タブがある。</li>
+<li>まだ TapInShift を起動していない場合、画面が空でもよい。</li>
+</ul>
+<hr>
+<h2>3. Excel 検証用コピーを準備する</h2>
+<p>原本を直接使わず、検証用コピーを作る。</p>
+<h3>推奨: 3〜8 を一括実行する</h3>
+<p>次のスクリプトは、手順 3〜8 のうち機械的に実行できる作業をまとめて行う。</p>
+<ul>
+<li>検証用コピー作成</li>
+<li><code>.venv</code> 作成</li>
+<li><code>pip install -e .</code></li>
+<li><code>pip install xlwings</code></li>
+<li>単体テスト</li>
+<li><code>tapinshift-agent --check-config</code></li>
+<li>Excel の日付列確認</li>
+<li>必要な場合の <code>tapinshift-agent</code> 起動</li>
+</ul>
+<p>秘密情報はファイルに保存しない。実行前に同じターミナルで環境変数として設定する。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-1">コピー</button><pre><code id="code-1" data-lang="powershell">$env:TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
+$env:SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
+$env:SLACK_APP_TOKEN=&quot;xapp-...&quot;
+
+.\scripts\validate-local.ps1 -Source &quot;&lt;原本のパス&gt;.xlsx&quot;</code></pre></div>
+<p>チェック完了後、そのまま TapInShift を起動する場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-2">コピー</button><pre><code id="code-2" data-lang="powershell">.\scripts\validate-local.ps1 -Source &quot;&lt;原本のパス&gt;.xlsx&quot; -StartAgent</code></pre></div>
+<p><code>-StartAgent</code> を付けた場合、TapInShift は常駐する。</p>
+<p>PowerShell が「進行中」のままでも正常。Slack UI 検証が終わったら <code>Ctrl+C</code> で停止する。</p>
+<p>検証用コピーを既に作成済みの場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-3">コピー</button><pre><code id="code-3" data-lang="powershell">.\scripts\validate-local.ps1 -SkipCopy</code></pre></div>
+<p>検証用コピーを作り直す場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-4">コピー</button><pre><code id="code-4" data-lang="powershell">.\scripts\validate-local.ps1 -Source &quot;&lt;原本のパス&gt;.xlsx&quot; -Force</code></pre></div>
+<p><code>.venv\Scripts\Activate.ps1</code> が見つからないエラーが出る場合は、Windows 用ではない <code>.venv</code> が残っている。</p>
+<p>その場合は <code>.venv</code> を退避または削除してから再実行する。</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-5">コピー</button><pre><code id="code-5" data-lang="powershell">Rename-Item .venv .venv-linux-backup
+.\scripts\validate-local.ps1 -Source &quot;&lt;原本のパス&gt;.xlsx&quot;</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-6">コピー</button><pre><code id="code-6" data-lang="bash">export TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
+export SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
+export SLACK_APP_TOKEN=&quot;xapp-...&quot;
+
+bash scripts/validate-local.sh --source &quot;&lt;原本のパス&gt;.xlsx&quot;</code></pre></div>
+<p>チェック完了後、そのまま TapInShift を起動する場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-7">コピー</button><pre><code id="code-7" data-lang="bash">bash scripts/validate-local.sh --source &quot;&lt;原本のパス&gt;.xlsx&quot; --start-agent</code></pre></div>
+<p><code>--start-agent</code> を付けた場合、TapInShift は常駐する。</p>
+<p>ターミナルが戻らなくても正常。Slack UI 検証が終わったら <code>Ctrl+C</code> で停止する。</p>
+<p>検証用コピーを既に作成済みの場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-8">コピー</button><pre><code id="code-8" data-lang="bash">bash scripts/validate-local.sh --skip-copy</code></pre></div>
+<p>検証用コピーを作り直す場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-9">コピー</button><pre><code id="code-9" data-lang="bash">bash scripts/validate-local.sh --source &quot;&lt;原本のパス&gt;.xlsx&quot; --force</code></pre></div>
+<p>この一括実行が成功したら、手順 9 の Slack UI 検証へ進む。</p>
+<h3>個別に実行する場合: スクリプトでコピーを作る</h3>
+<p><code>config/config.local.json</code> の <code>excel.path</code> をコピー先として使う。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-10">コピー</button><pre><code id="code-10" data-lang="powershell">python scripts\timesheet_tools.py make-copy --source &quot;&lt;原本のパス&gt;.xlsx&quot;</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-11">コピー</button><pre><code id="code-11" data-lang="bash">python3 scripts/timesheet_tools.py make-copy --source &quot;&lt;原本のパス&gt;.xlsx&quot;</code></pre></div>
+<p>コピー先が既にある場合は止まる。上書きする場合だけ <code>--force</code> を付ける。</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-12">コピー</button><pre><code id="code-12" data-lang="bash">python3 scripts/timesheet_tools.py make-copy --source &quot;&lt;原本のパス&gt;.xlsx&quot; --force</code></pre></div>
+<h3>手動で作る場合</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-13">コピー</button><pre><code id="code-13" data-lang="powershell">Copy-Item &quot;&lt;原本のパス&gt;.xlsx&quot; &quot;C:\TapInShiftData\private\202607_3373_勤務表.xlsx&quot;</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-14">コピー</button><pre><code id="code-14" data-lang="bash">cp &quot;&lt;原本のパス&gt;.xlsx&quot; &quot;data/private/202607_3373_勤務表.xlsx&quot;</code></pre></div>
+<p>その後、<code>config/config.local.json</code> の <code>excel.path</code> が検証用コピーを指していることを確認する。</p>
+<p>例:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-15">コピー</button><pre><code id="code-15" data-lang="json">&quot;path&quot;: &quot;C:\\TapInShiftData\\private\\202607_3373_勤務表.xlsx&quot;</code></pre></div>
+<hr>
+<h2>4. Python 環境を作る</h2>
+<p>手順 3 の一括実行を使った場合、この手順は完了済み。</p>
+<p>リポジトリのルートで実行する。</p>
+<h3>推奨: スクリプトで作る</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-16">コピー</button><pre><code id="code-16" data-lang="powershell">.\scripts\setup-local.ps1
+pip install xlwings</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-17">コピー</button><pre><code id="code-17" data-lang="bash">bash scripts/setup-local.sh
+pip install xlwings</code></pre></div>
+<p><code>tapinshift-agent --help</code> が表示されれば成功。</p>
+<h3>手動で作る場合</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-18">コピー</button><pre><code id="code-18" data-lang="powershell">python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+pip install xlwings
+tapinshift-agent --help</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-19">コピー</button><pre><code id="code-19" data-lang="bash">python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+pip install xlwings
+tapinshift-agent --help</code></pre></div>
+<hr>
+<h2>5. 環境変数を設定する</h2>
+<p>手順 3 の一括実行を使う場合は、一括実行前にこの環境変数を設定する。</p>
+<p>秘密情報はファイルに書かない。ターミナルに一時的に設定する。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-20">コピー</button><pre><code id="code-20" data-lang="powershell">$env:TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
+$env:SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
+$env:SLACK_APP_TOKEN=&quot;xapp-...&quot;</code></pre></div>
+<p>OpenAI 分類を使う場合だけ追加する。</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-21">コピー</button><pre><code id="code-21" data-lang="powershell">$env:OPENAI_API_KEY=&quot;sk-...&quot;</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-22">コピー</button><pre><code id="code-22" data-lang="bash">export TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
+export SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
+export SLACK_APP_TOKEN=&quot;xapp-...&quot;</code></pre></div>
+<p>OpenAI 分類を使う場合だけ追加する。</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-23">コピー</button><pre><code id="code-23" data-lang="bash">export OPENAI_API_KEY=&quot;sk-...&quot;</code></pre></div>
+<hr>
+<h2>6. 設定チェックを行う</h2>
+<p>手順 3 の一括実行を使った場合、この手順は完了済み。</p>
+<h3>推奨: スクリプトで確認する</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-24">コピー</button><pre><code id="code-24" data-lang="powershell">.\scripts\check-local.ps1</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-25">コピー</button><pre><code id="code-25" data-lang="bash">bash scripts/check-local.sh</code></pre></div>
+<h3>手動で確認する場合</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-26">コピー</button><pre><code id="code-26" data-lang="powershell">python -m unittest discover -s tests
+tapinshift-agent --config config/config.local.json --check-config</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-27">コピー</button><pre><code id="code-27" data-lang="bash">PYTHONPATH=src python3 -m unittest discover -s tests
+tapinshift-agent --config config/config.local.json --check-config</code></pre></div>
+<p>期待する結果:</p>
+<table>
+<thead>
+<tr>
+<th>表示</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OK</code></td>
+<td>問題なし</td>
+</tr>
+<tr>
+<td><code>MISSING</code></td>
+<td>必須設定が不足</td>
+</tr>
+<tr>
+<td><code>SKIP</code></td>
+<td>任意設定が未設定</td>
+</tr>
+</tbody>
+</table>
+<p>最低限、次が <code>OK</code> になること。</p>
+<ul>
+<li>Slack bot token</li>
+<li>Slack app token</li>
+<li>Excel file exists</li>
+<li>Excel password</li>
+<li>Database directory writable</li>
+<li>slack-bolt import</li>
+<li>xlwings import</li>
+</ul>
+<p>OpenAI を使わない場合、OpenAI API key は <code>SKIP</code> でよい。</p>
+<hr>
+<h2>7. Excel の日付列を確認する</h2>
+<p>手順 3 の一括実行を使った場合、この手順は完了済み。</p>
+<p>書き込み前に必ず確認する。</p>
+<p>このプロジェクトは、<code>L</code> 列から対象日を探す。</p>
+<p><code>L</code> 列の値が想定と違うと、Excel へ書き込めない。</p>
+<p>次を実行する。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-28">コピー</button><pre><code id="code-28" data-lang="powershell">python scripts\timesheet_tools.py inspect-dates</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-29">コピー</button><pre><code id="code-29" data-lang="bash">python3 scripts/timesheet_tools.py inspect-dates</code></pre></div>
+<p>出力例:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-30">コピー</button><pre><code id="code-30" data-lang="text">L7: datetime.datetime(2026, 6, 1, 0, 0)  [date]
+L8: datetime.datetime(2026, 6, 2, 0, 0)  [date]
+---
+日付型: 31 件 / それ以外: 0 件
+判定: すべて日付型。続行してよい。</code></pre></div>
+<p>手動で確認する場合は、Python を起動して次を貼り付ける。</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-31">コピー</button><pre><code id="code-31" data-lang="python">import os
+import xlwings as xw
+
+path = &quot;C:/TapInShiftData/private/202607_3373_勤務表.xlsx&quot;
+password = os.environ[&quot;TAPINSHIFT_EXCEL_PASSWORD&quot;]
+
+app = xw.App(visible=False, add_book=False)
+book = app.books.open(path, password=password)
+sheet = book.sheets[&quot;6&quot;]
+
+for row in range(7, 38):
+        print(row, repr(sheet.range(f&quot;L{row}&quot;).value))
+
+book.close()
+app.quit()</code></pre></div>
+<p>確認結果:</p>
+<table>
+<thead>
+<tr>
+<th>出力例</th>
+<th>判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>datetime.datetime(2026, 6, 1, 0, 0)</code></td>
+<td>続行してよい</td>
+</tr>
+<tr>
+<td><code>1.0</code>、<code>1</code>、<code>&#x27;1&#x27;</code></td>
+<td>日番号として続行できる</td>
+</tr>
+</tbody>
+</table>
+<p><code>1.0</code> のような日番号でも、現在のコードは対象月の日付として扱える。</p>
+<p><code>2026-06-27</code> が見つからない場合は、<code>config/config.local.json</code> の <code>excel.path</code> が正しい勤務表を指しているかを先に確認する。</p>
+<p>対象日の行だけ確認する場合は、次を実行する。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-32">コピー</button><pre><code id="code-32" data-lang="powershell">python scripts\timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-33">コピー</button><pre><code id="code-33" data-lang="bash">python3 scripts/timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
+<p>期待する結果:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-34">コピー</button><pre><code id="code-34" data-lang="text">OK: 2026-06-27 は L33 に一致しました: 27.0 [day_number]</code></pre></div>
+<hr>
+<h2>8. TapInShift を起動する</h2>
+<p>手順 3 の一括実行で <code>-StartAgent</code> または <code>--start-agent</code> を付けた場合、この手順は完了済み。</p>
+<p>設定チェックが通ったら、TapInShift を起動する。</p>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-35">コピー</button><pre><code id="code-35" data-lang="powershell">tapinshift-agent --config config/config.local.json</code></pre></div>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-36">コピー</button><pre><code id="code-36" data-lang="bash">tapinshift-agent --config config/config.local.json</code></pre></div>
+<p>起動中はターミナルを閉じない。</p>
+<p>このターミナルが動いている間だけ Slack UI から反映できる。</p>
+<hr>
+<h2>9. Slack UI で確認する</h2>
+<p>Slack で作成した App を開く。</p>
+<p><code>ホーム</code> タブを開く。</p>
+<h3>9.1 App Home 表示</h3>
+<p>確認すること:</p>
+<ul>
+<li>任意メモ欄がある。</li>
+<li><code>出勤</code> ボタンがある。</li>
+<li><code>退勤</code> ボタンがある。</li>
+<li><code>メモ反映</code> ボタンがある。</li>
+<li>日付選択がある。</li>
+<li>丸め単位選択がある。</li>
+</ul>
+<h3>9.1.1 丸め単位選択</h3>
+<ol>
+<li><code>丸め単位</code> で <code>15分</code> などを選ぶ。</li>
+<li>Slack に変更完了の表示が出る。</li>
+<li>以降の出勤・退勤で選んだ丸め単位が使われることを確認する。</li>
+</ol>
+<p>注意:</p>
+<ul>
+<li><code>丸めなし</code> を選ぶと、打刻時刻は分単位のまま反映される。</li>
+<li>既定の丸め方向は、出勤が切り上げ、退勤が切り捨て。</li>
+<li>選択した丸め単位は SQLite に保存され、エージェント再起動後も使われる。</li>
+</ul>
+<h3>9.2 出勤</h3>
+<ol>
+<li>必要なら任意メモを入力する。</li>
+<li><code>出勤</code> を押す。</li>
+<li>Slack に成功または失敗の表示が出る。</li>
+<li>Excel の対象日の <code>F</code> 列に時刻が入ることを確認する。</li>
+</ol>
+<p>期待:</p>
+<ul>
+<li>時刻は <code>HH:MM</code> 相当。</li>
+<li>秒は入らない。</li>
+<li>既に値がある場合は上書きせず失敗する。</li>
+</ul>
+<h3>9.3 退勤</h3>
+<ol>
+<li>必要なら任意メモを入力する。</li>
+<li><code>退勤</code> を押す。</li>
+<li>Slack に成功または失敗の表示が出る。</li>
+<li>Excel の対象日の <code>G</code> 列に時刻が入ることを確認する。</li>
+</ol>
+<h3>9.4 メモ付き打刻</h3>
+<p>次の例で確認する。</p>
+<table>
+<thead>
+<tr>
+<th>入力例</th>
+<th>期待する反映</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>遅延証明あり</code></td>
+<td><code>W</code> 列に反映</td>
+</tr>
+<tr>
+<td><code>交通費320円</code></td>
+<td><code>Y</code> 列に <code>交通費</code>、<code>AB</code> 列に <code>320</code></td>
+</tr>
+</tbody>
+</table>
+<p>OpenAI API key を設定していない場合は、ローカルルールで分類する。</p>
+<h3>9.4.1 後から任意メモを反映する</h3>
+<p>出勤・退勤を先に押した後でも、任意メモだけを後から反映できる。</p>
+<ol>
+<li><code>表示・編集する日付</code> で対象日を選ぶ。</li>
+<li><code>任意メモ</code> に内容を入力する。</li>
+<li><code>メモ反映</code> を押す。</li>
+<li>Slack に成功または失敗の表示が出る。</li>
+<li>Excel の対象日の <code>W</code>、<code>Y</code>、<code>AB</code> 列に分類結果が反映されることを確認する。</li>
+</ol>
+<p>注意:</p>
+<ul>
+<li>出勤 <code>F</code>、退勤 <code>G</code> は変更しない。</li>
+<li>分類できないメモは <code>needs_confirmation</code> または <code>failed</code> として SQLite に残る。</li>
+</ul>
+<h3>9.5 日付編集モーダル</h3>
+<ol>
+<li>日付選択で対象日を選ぶ。</li>
+<li>編集モーダルが開くことを確認する。</li>
+<li>出勤、退勤、届出内容、経費内容、金額を入力する。</li>
+<li>保存する。</li>
+<li>Excel に反映されることを確認する。</li>
+</ol>
+<p>注意:</p>
+<ul>
+<li>入力した項目だけ上書きする。</li>
+<li>空欄の項目は既存値を保持する。</li>
+<li>セルを消したい場合は Excel で直接消す。</li>
+</ul>
+<hr>
+<h2>10. SQLite を確認する</h2>
+<p>SQLite には、成功や失敗の履歴が残る。</p>
+<h3>推奨: スクリプトで確認する</h3>
+<h3>Windows PowerShell</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-37">コピー</button><pre><code id="code-37" data-lang="powershell">python scripts\timesheet_tools.py show-db --limit 5</code></pre></div>
+<p>実機検証で <code>config/config.local.json</code> の <code>database_path</code> を <code>C:\TapInShiftData\tapinshift.sqlite3</code> にしている場合も、上のコマンドで同じ設定を読み込む。</p>
+<h3>macOS</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-38">コピー</button><pre><code id="code-38" data-lang="bash">python3 scripts/timesheet_tools.py show-db --limit 5</code></pre></div>
+<h3>手動で確認する場合</h3>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-39">コピー</button><pre><code id="code-39" data-lang="bash">sqlite3 data/tapinshift.sqlite3 &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
+sqlite3 data/tapinshift.sqlite3 &quot;SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;&quot;</code></pre></div>
+<p>Windows 実機で直接 SQLite を見る場合:</p>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-40">コピー</button><pre><code id="code-40" data-lang="powershell">sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
+sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;&quot;</code></pre></div>
+<p>確認すること:</p>
+<table>
+<thead>
+<tr>
+<th>状態</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reflected</code></td>
+<td>Excel へ反映済み</td>
+</tr>
+<tr>
+<td><code>needs_confirmation</code></td>
+<td>メモ確認待ち</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Excel 反映失敗</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>11. 失敗系を確認する</h2>
+<p>最低限、次を確認する。</p>
+<table>
+<thead>
+<tr>
+<th>ケース</th>
+<th>期待</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>既に出勤セルに値がある日に出勤する</td>
+<td>上書きせず <code>failed</code></td>
+</tr>
+<tr>
+<td>対象期間外の日付を編集する</td>
+<td><code>failed</code></td>
+</tr>
+<tr>
+<td>Excel パスワードを未設定にする</td>
+<td><code>failed</code></td>
+</tr>
+</tbody>
+</table>
+<p>失敗しても、検証用コピーを使っていれば原本には影響しない。</p>
+<hr>
+<h2>12. 終了時の確認</h2>
+<p>最後に確認する。</p>
+<ul>
+<li>検証用コピーで検証した。</li>
+<li>原本へ直接書き込んでいない。</li>
+<li>出勤、退勤、日付編集を確認した。</li>
+<li>失敗時に Slack と SQLite で確認できた。</li>
+<li>秘密情報をファイルへ保存していない。</li>
+<li>コード修正をした場合はテストを実行した。</li>
+</ul>
+<hr>
+<h2>13. よくある問題</h2>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>対応</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Slack の Home が出ない</td>
+<td>TapInShift が起動中か確認する。<code>app_home_opened</code> が設定済みか確認する</td>
+</tr>
+<tr>
+<td>ボタンを押しても反応しない</td>
+<td>Socket Mode と Interactivity が有効か確認する</td>
+</tr>
+<tr>
+<td><code>SLACK_BOT_TOKEN</code> が MISSING</td>
+<td><code>xoxb-...</code> の token を環境変数に設定する</td>
+</tr>
+<tr>
+<td><code>SLACK_APP_TOKEN</code> が MISSING</td>
+<td><code>xapp-...</code> の token を環境変数に設定する</td>
+</tr>
+<tr>
+<td>Excel が開けない</td>
+<td>パス、パスワード、Excel アプリの有無を確認する</td>
+</tr>
+<tr>
+<td>対象日が見つからない</td>
+<td>手順 7 の L 列形式を確認する</td>
+</tr>
+<tr>
+<td>Excel に保存されない</td>
+<td>同じファイルを手動で開いていないか確認する</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>14. 次回へ引き継ぐ内容</h2>
+<p>検証後、次を <code>handoff.md</code> または <code>tasklist.md</code> に記録する。</p>
+<ul>
+<li>実行した OS</li>
+<li>Excel の L 列形式</li>
+<li>Slack App 設定で追加した scope</li>
+<li>成功した操作</li>
+<li>失敗した操作</li>
+<li>修正が必要な箇所</li>
+<li>実行したテスト結果</li>
+</ul>
+<script>
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  var area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  try {
+    document.execCommand("copy");
+    return Promise.resolve();
+  } finally {
+    document.body.removeChild(area);
+  }
+}
+document.querySelectorAll(".copy-btn").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var code = document.getElementById(btn.dataset.target);
+    if (!code) return;
+    var text = code.innerText;
+    copyText(text).then(function () {
+      var original = btn.textContent;
+      btn.textContent = "コピーしました";
+      btn.classList.add("copied");
+      setTimeout(function () {
+        btn.textContent = original;
+        btn.classList.remove("copied");
+      }, 1500);
+    });
+  });
+});
+</script>
+</body>
+</html>

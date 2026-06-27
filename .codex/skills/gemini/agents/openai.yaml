@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gemini"
+  short_description: "OAuthのGemini CLI相談手順を案内する"
+  default_prompt: "Use $gemini to prepare a sourced Gemini research prompt for manual OAuth execution."

@@ -1,0 +1,35 @@
+{
+  "name": "codex-devcontainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "init": true,
+
+  "securityOpt": [
+    "seccomp=unconfined"
+  ],
+
+  "mounts": [
+    "source=codex-home,target=/home/vscode/.codex,type=volume",
+    "source=claude-home,target=/home/vscode/.claude,type=volume",
+    "source=gemini-home,target=/home/vscode/.gemini,type=volume"
+  ],
+
+  "containerEnv": {
+    "CODEX_HOME": "/home/vscode/.codex"
+  },
+
+  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.eol": "\n"
+      }
+    }
+  }
+}
