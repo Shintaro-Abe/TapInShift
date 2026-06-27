@@ -35,6 +35,13 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(result.expense_item, "新宿駅-渋谷駅")
         self.assertEqual(result.amount, 1200)
 
+    def test_rule_classifier_splits_location_and_route_with_japanese_commas(self) -> None:
+        result = classify_with_rules("アレア品川、南平⇔市ヶ谷、1134")
+
+        self.assertEqual(result.notice, "アレア品川")
+        self.assertEqual(result.expense_item, "南平⇔市ヶ谷")
+        self.assertEqual(result.amount, 1134)
+
     def test_rule_classifier_marks_ambiguous_text_for_confirmation(self) -> None:
         result = classify_with_rules("あとで確認")
 

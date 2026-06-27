@@ -11,7 +11,7 @@ AMOUNT_RE = re.compile(r"(?P<amount>\d{2,7})\s*円?")
 AMOUNT_TEXT_RE = re.compile(r"[¥￥]?\s*\d[\d,]{1,6}\s*円?")
 EXPENSE_LABELS = ("交通費", "経費", "電車", "バス", "タクシー", "昼食", "宿泊", "駐車")
 LOCATION_KEYWORDS = ("拠点", "本社", "支社", "営業所", "オフィス", "ビル", "タワー", "センター", "駅")
-ROUTE_SEPARATORS = ("-", "ー", "〜", "~", "→", "->", "から")
+ROUTE_SEPARATORS = ("-", "ー", "〜", "~", "→", "->", "⇔", "↔", "<->", "から")
 
 
 def classify_with_rules(note: str) -> Classification:
