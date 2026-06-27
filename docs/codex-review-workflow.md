@@ -70,13 +70,15 @@ TapInShift では、Slack token、OpenAI API key、Excel password、SQLite、実
 
 ## 4. 今回の自動レビュー結果
 
-2026-06-27 時点のレビューでは、`scripts/timesheet_tools.py show-db` が古い SQLite スキーマで `app_settings` テーブル未作成の場合に失敗し得る点を修正した。
+2026-06-27 時点のレビューでは、`scripts/timesheet_tools.py show-db` が古い SQLite スキーマで `app_settings` テーブル未作成の場合に失敗し得る点と、将来 `app_settings` に秘密情報が追加された場合の表示リスクを修正した。
 
 対応:
 
 - `app_settings` テーブルがない場合も `show-db` が落ちないようにした。
-- `tests/test_timesheet_tools.py` を追加し、古い DB と新しい DB の両方を検証した。
-- 全テストは `34` 件 PASS。
+- `show-db` で表示する `app_settings` は allowlist 方式にし、現時点では `time_rounding.mode` のみ表示する。
+- Excel パスワード環境変数が未設定の場合は、Excel を開く前に明確なエラーで停止する。
+- `tests/test_timesheet_tools.py` と `tests/test_excel_writer.py` に失敗系テストを追加した。
+- 全テストは `37` 件 PASS。
 
 ## 5. 参照
 

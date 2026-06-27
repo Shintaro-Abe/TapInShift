@@ -598,7 +598,7 @@ app.quit()</code></pre></div>
 <p>実機検証で <code>config/config.local.json</code> の <code>database_path</code> を <code>C:\TapInShiftData\tapinshift.sqlite3</code> にしている場合も、上のコマンドで同じ設定を読み込む。</p>
 <h3>macOS</h3>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-38">コピー</button><pre><code id="code-38" data-lang="bash">python3 scripts/timesheet_tools.py show-db --limit 5</code></pre></div>
-<p><code>show-db</code> は <code>punch_events</code>、<code>manual_edits</code>、<code>app_settings</code> を表示する。</p>
+<p><code>show-db</code> は <code>punch_events</code>、<code>manual_edits</code>、表示許可された <code>app_settings</code> を表示する。現時点で表示する <code>app_settings</code> は <code>time_rounding.mode</code> のみ。</p>
 <h3>手動で確認する場合</h3>
 <p><code>sqlite3</code> コマンドが使える環境だけで実行する。</p>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-39">コピー</button><pre><code id="code-39" data-lang="bash">sqlite3 data/tapinshift.sqlite3 &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
@@ -632,6 +632,7 @@ sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT key,value 
 </tbody>
 </table>
 <p>丸め単位を変更した場合は、<code>app_settings</code> に <code>time_rounding.mode</code> として <code>none</code>, <code>5m</code>, <code>10m</code>, <code>15m</code>, <code>20m</code>, <code>30m</code> のいずれかが保存される。</p>
+<p>Excel password 環境変数が未設定の場合、アプリ本体の Excel writer は Excel を開く前にエラーで停止する。この失敗系は自動テストで確認する。</p>
 <hr>
 <h2>11. 失敗系を確認する</h2>
 <p>最低限、次を確認する。</p>

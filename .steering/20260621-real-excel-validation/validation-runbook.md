@@ -642,7 +642,7 @@ python scripts\timesheet_tools.py show-db --limit 5
 python3 scripts/timesheet_tools.py show-db --limit 5
 ```
 
-`show-db` は `punch_events`、`manual_edits`、`app_settings` を表示する。
+`show-db` は `punch_events`、`manual_edits`、表示許可された `app_settings` を表示する。現時点で表示する `app_settings` は `time_rounding.mode` のみ。
 
 ### 手動で確認する場合
 
@@ -671,6 +671,8 @@ sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT key,value FROM app_settin
 | `failed` | Excel 反映失敗 |
 
 丸め単位を変更した場合は、`app_settings` に `time_rounding.mode` として `none`, `5m`, `10m`, `15m`, `20m`, `30m` のいずれかが保存される。
+
+Excel password 環境変数が未設定の場合、アプリ本体の Excel writer は Excel を開く前にエラーで停止する。この失敗系は自動テストで確認する。
 
 ---
 

@@ -1,8 +1,10 @@
 from datetime import date, datetime
+import os
 import unittest
 from zoneinfo import ZoneInfo
 
 from tapinshift.config import ExcelColumns, ExcelConfig, ExcelDefaults
+from tapinshift.models import PunchType
 from tapinshift.excel_writer import ExcelTimesheetWriter, _apply_day_values, _excel_time_text, matches_target_date
 
 
@@ -109,12 +111,40 @@ class ExcelWriterHelperTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Target date is outside this timesheet period"):
             writer._find_row(sheet, date(2026, 6, 28))
 
+    def test_write_punch_requires_excel_password_before_opening_excel(self) -> None:
+        env_name = "TAPINSHIFT_TEST_MISSING_EXCEL_PASSWORD"
+        os.environ.pop(env_name, None)
+        writer = ExcelTimesheetWriter(_excel_config(password_env=env_name))
 
-def _excel_config() -> ExcelConfig:
+        with self.assertRaisesRegex(RuntimeError, env_name):
+            writer.write_punch(
+                date(2026, 6, 27),
+                PunchType.CLOCK_IN,
+                datetime(2026, 6, 27, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+                None,
+            )
+
+    def test_update_day_requires_excel_password_before_opening_excel(self) -> None:
+        env_name = "TAPINSHIFT_TEST_MISSING_EXCEL_PASSWORD"
+        os.environ.pop(env_name, None)
+        writer = ExcelTimesheetWriter(_excel_config(password_env=env_name))
+
+        with self.assertRaisesRegex(RuntimeError, env_name):
+            writer.update_day(
+                date(2026, 6, 27),
+                clock_in=None,
+                clock_out=None,
+                notice=None,
+                expense_item=None,
+                amount=None,
+            )
+
+
+def _excel_config(password_env: str = "TAPINSHIFT_EXCEL_PASSWORD") -> ExcelConfig:
     return ExcelConfig(
         path="dummy.xlsx",
         sheet_name="6",
-        password_env="TAPINSHIFT_EXCEL_PASSWORD",
+        password_env=password_env,
         columns=ExcelColumns(
             table="B",
             attendance="C",

@@ -27,6 +27,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = REPO_ROOT / "config" / "config.local.json"
+DISPLAYABLE_APP_SETTING_KEYS = ("time_rounding.mode",)
 
 
 def _load_config(config_path: Path) -> dict:
@@ -404,7 +405,16 @@ def cmd_show_db(args: argparse.Namespace) -> int:
             print("  ", r)
         print("# app_settings")
         if _table_exists(conn, "app_settings"):
-            for r in conn.execute("SELECT key, value FROM app_settings ORDER BY key"):
+            placeholders = ", ".join("?" for _ in DISPLAYABLE_APP_SETTING_KEYS)
+            rows = list(
+                conn.execute(
+                    f"SELECT key, value FROM app_settings WHERE key IN ({placeholders}) ORDER BY key",
+                    DISPLAYABLE_APP_SETTING_KEYS,
+                )
+            )
+            if not rows:
+                print("   (no displayable app_settings)")
+            for r in rows:
                 print("  ", r)
         else:
             print("   (app_settings table does not exist yet)")

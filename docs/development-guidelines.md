@@ -72,6 +72,7 @@
 - 打刻イベントは `slack_event_id` を主キーにする。
 - 手動編集は追記履歴として保存する。
 - App Home で変更したアプリ設定は key-value の `app_settings` に保存する。
+- 検証コマンドで `app_settings` を表示する場合は、表示してよいキーだけを allowlist で出力する。
 - エラー文字列は復旧判断に必要な範囲で保存する。
 
 ## 10. OpenAI 分類ルール
@@ -146,6 +147,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 
 - 秘密情報をログ、テスト、ドキュメント、コミットに含めない。
 - Slack token、OpenAI API key、Excel password は環境変数で管理する。
+- Excel password 環境変数が未設定の場合は、Excel を開く前に失敗させる。
 - ユーザー入力は Excel 書き込み前に正規化する。
 - 金額は整数に変換できる場合のみ反映する。
 - 失敗時のエラーに秘密情報が含まれないよう注意する。

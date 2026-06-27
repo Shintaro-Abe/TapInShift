@@ -25,12 +25,12 @@ class ExcelTimesheetWriter:
         reflected_time: datetime,
         classification: Classification | None,
     ) -> ExcelWriteResult:
+        password = _require_excel_password(self.config)
         try:
             import xlwings as xw
         except ImportError as exc:
             raise RuntimeError("xlwings package is not installed") from exc
 
-        password = self.config.password
         app = xw.App(visible=False, add_book=False)
         try:
             book = app.books.open(str(self.config.path), password=password)
@@ -68,12 +68,12 @@ class ExcelTimesheetWriter:
         expense_item: str | None,
         amount: int | None,
     ) -> ExcelWriteResult:
+        password = _require_excel_password(self.config)
         try:
             import xlwings as xw
         except ImportError as exc:
             raise RuntimeError("xlwings package is not installed") from exc
 
-        password = self.config.password
         app = xw.App(visible=False, add_book=False)
         try:
             book = app.books.open(str(self.config.path), password=password)
@@ -140,6 +140,13 @@ def _write_if_empty(sheet, address: str, value: str) -> None:
     if cell.value not in (None, ""):
         raise ValueError(f"Cell already has a value: {address}")
     cell.value = value
+
+
+def _require_excel_password(config: ExcelConfig) -> str:
+    password = config.password
+    if not password:
+        raise RuntimeError(f"Excel password environment variable {config.password_env} is not set")
+    return password
 
 
 def _apply_day_values(

@@ -87,13 +87,15 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 結果:
 
 ```text
-Ran 34 tests in 0.344s
+Ran 37 tests in 0.355s
 OK
 ```
 
 Codex レビュー方式は `AGENTS.md` の Review guidelines と `docs/codex-review-workflow.md` に整理済み。
 
-レビューで見つかった `show-db` の古い SQLite スキーマ互換性リスクは修正済み。`app_settings` テーブルが未作成の DB でも `show-db` が落ちないようにし、`tests/test_timesheet_tools.py` を追加した。
+レビューで見つかった `show-db` の古い SQLite スキーマ互換性リスクは修正済み。`app_settings` テーブルが未作成の DB でも `show-db` が落ちないようにし、表示対象は allowlist 化して `time_rounding.mode` のみにした。`tests/test_timesheet_tools.py` で互換表示と非表示キーを確認している。
+
+Excel password 環境変数が未設定の場合は、Excel writer が Excel を開く前に `RuntimeError` で停止する。`tests/test_excel_writer.py` で `write_punch` と `update_day` の両方を確認済み。
 
 GitHub `origin/main` へ以下を push 済み。
 
@@ -152,7 +154,7 @@ python scripts\timesheet_tools.py find-date --date 2026-06-27
    - 対象日なし: 自動テストで確認済み。
    - 既存セル上書き防止: 実機 DB と自動テストで確認済み。
    - 分類確認待ち `needs_confirmation`: 自動テストで SQLite 保存を確認済み。
-   - パスワード未設定: 実機 Excel 起動境界のため未確認。
+   - パスワード未設定: 自動テストで Excel を開く前に停止することを確認済み。
    - Slack 失敗文言: 自動テストで確認済み。
 6. 複合メモの分離精度を運用判断する。
    - 現状: 金額は `AB` のみに入る。

@@ -136,6 +136,8 @@ graph LR
 - `config.local.json`、`.env.local`、`data/` は Git 管理対象外にする。
 - Slack ユーザー入力は文字列として受け取り、Excel 書き込み前に型変換する。
 - 金額は整数に変換できる場合のみ Excel へ渡す。
+- `scripts/timesheet_tools.py show-db` は `app_settings` の全キーを表示せず、表示許可した運用設定のみ出力する。
+- Excel password 環境変数が未設定の場合、Excel writer は Excel を開く前に停止する。
 
 ## 12. 品質確認
 

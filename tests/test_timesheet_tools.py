@@ -42,6 +42,26 @@ class TimesheetToolsTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertIn("('time_rounding.mode', '30m')", output.getvalue())
 
+    def test_show_db_hides_non_displayable_app_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = _write_config(Path(tmp))
+            db_path = Path(tmp) / "tapinshift.sqlite3"
+            _create_legacy_db(db_path)
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+                conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", ("time_rounding.mode", "30m"))
+                conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", ("excel.password", "secret"))
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                exit_code = cmd_show_db(Namespace(config=str(config_path), limit=1))
+
+        self.assertEqual(exit_code, 0)
+        text = output.getvalue()
+        self.assertIn("('time_rounding.mode', '30m')", text)
+        self.assertNotIn("excel.password", text)
+        self.assertNotIn("secret", text)
+
 
 def _write_config(base: Path) -> Path:
     config_path = base / "config.json"
