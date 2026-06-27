@@ -91,7 +91,7 @@ Ran 39 tests in 1.841s
 OK
 ```
 
-Codex レビュー方式は `AGENTS.md` の Review guidelines と `docs/codex-review-workflow.md` に整理済み。
+Codex レビュー方式は `AGENTS.md` の Review guidelines と `knowledge/codex-review-workflow.md` に整理済み。
 
 レビューで見つかった `show-db` の古い SQLite スキーマ互換性リスクは修正済み。`app_settings` テーブルが未作成の DB でも `show-db` が落ちないようにし、表示対象は allowlist 化して `time_rounding.mode` のみにした。`tests/test_timesheet_tools.py` で互換表示と非表示キーを確認している。
 

@@ -113,9 +113,9 @@
 - [x] 編集モーダル保存時のデータ損失対策: `excel_writer._apply_day_values` を追加し、空欄(None)の項目は既存 Excel セルを上書きしない方針に変更（`service.py` 経由）。`slack_app.py` のモーダル説明文も「空欄は既存値を保持」に更新。
 - [x] 反映時刻の秒・μ秒除去: `excel_writer._excel_time_text` を追加し、`write_punch` の `F/G` 書き込みを `HH:MM` 文字列に統一。
 - [x] 手動編集の金額パース改善: `service._to_int_or_none` でカンマ・`円`・`¥` を除去（`"abc"` 等は引き続き失敗）。
-- [x] 追加テスト: `tests/test_excel_writer.py`（空欄保持・分丸め・日番号/Excelシリアル/曜日付き文字列検索・対象日なし・Excel password 未設定）、`tests/test_service.py`（カンマ・円付き金額、丸め設定、`needs_confirmation`、writer 失敗）、`tests/test_config.py`（丸め方向読み込み）、`tests/test_storage.py`（`app_settings`）、`tests/test_slack_app.py`（丸め単位 select・失敗文言）、`tests/test_timesheet_tools.py`（`show-db` の `app_settings` 互換表示・allowlist 表示）、`tests/test_classifier.py`（複合メモ分離）。全39件 PASS。
+- [x] 追加テスト: `tests/test_excel_writer.py`（空欄保持・分丸め・日番号/Excelシリアル/曜日付き文字列検索・対象日なし・Excel password 未設定）、`tests/test_service.py`（カンマ・円付き金額、丸め設定、`needs_confirmation`、writer 失敗）、`tests/test_config.py`（丸め方向読み込み）、`tests/test_storage.py`（`app_settings`）、`tests/test_slack_app.py`（丸め単位 select・失敗文言）、`tests/test_timesheet_tools.py`（`show-db` の `app_settings` 互換表示・allowlist 表示）、`tests/test_classifier.py`（複合メモ分離・双方向経路区切り）。全40件 PASS。
 - [x] `show-db` の `app_settings` 表示を allowlist 化し、現時点では `time_rounding.mode` のみ表示する。
-- [x] Codex レビュー方式を `AGENTS.md` と `docs/codex-review-workflow.md` に整理した。
+- [x] Codex レビュー方式を `AGENTS.md` と `knowledge/codex-review-workflow.md` に整理した。
 - [x] 実勤務表 `L` 列が日番号の場合にも対象日を検索できるよう、`excel_writer._find_row` の日付判定を修正する。
 - [x] 出退勤の時刻丸めを設定できるよう、`time_rounding.clock_in_direction` / `clock_out_direction` を追加。既定は丸めなし、出勤切り上げ・退勤切り捨てを設定可能にした。
 - [x] Slack App Home から丸め単位（なし/5/10/15/20/30分）を選択できるようにし、選択値を SQLite に保存する。
@@ -124,7 +124,7 @@
 
 ## 12. 完了条件
 
-- [ ] 検証用コピーまたは復元可能なバックアップを使って実 Excel 検証している。
+- [x] 検証用コピーまたは復元可能なバックアップを使って実 Excel 検証している。
 - [x] 実勤務表で出勤、退勤、手動編集の正常系が確認済みである。
 - [x] 既存セル上書き防止、対象日なし、パスワード未設定などの失敗系が確認済みである。
 - [x] SQLite に成功、確認待ち、失敗、手動編集履歴が保存されることを確認済みである。
