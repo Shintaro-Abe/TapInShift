@@ -7,7 +7,7 @@ SlackのApp Homeから出勤・退勤を記録し、自宅PCローカルのExcel
 - Slack App Home + Socket Mode
 - Pythonローカルエージェント
 - SQLite監査ログ
-- OpenAI APIによる任意メモ分類
+- ローカルルールによる任意メモ分類
 - xlwingsによるローカルExcel書き込み
 
 v1は自宅PCが起動中のみ処理します。クラウドキューや公開APIは使いません。
@@ -28,7 +28,6 @@ cp config/config.example.json config/config.local.json
 ```bash
 export SLACK_BOT_TOKEN='xoxb-...'
 export SLACK_APP_TOKEN='xapp-...'
-export OPENAI_API_KEY='sk-...'
 export TAPINSHIFT_EXCEL_PASSWORD='...'
 ```
 
@@ -48,14 +47,9 @@ tapinshift-agent --config config/config.local.json
 - `app_home_opened` イベントを購読する
 - Bot token scopesはSlack App設定画面で最小権限から開始し、App Home表示・Modal表示に必要なものだけ追加する
 
-## OpenAI分類
+## 任意メモ分類
 
-既定モデル:
-
-- 通常: `gpt-5.4-nano`
-- フォールバック: `gpt-5.4-mini`
-
-任意メモが空欄の場合、OpenAI APIは呼びません。APIキーが未設定の場合は、正規表現・キーワードベースの簡易分類へフォールバックします。
+任意メモはローカルルールで分類します。届出内容は拠点・建物名・駅名などの場所情報、経費内容は金額に対応する内容として扱います。交通費の場合、経費内容には経路のみを入れます。
 
 ## 編集
 

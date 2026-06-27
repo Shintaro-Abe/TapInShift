@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from dotenv import load_dotenv
 
-from .classifier import OpenAIClassifier
+from .classifier import RuleBasedClassifier
 from .config import load_config
 from .excel_writer import ExcelTimesheetWriter
 from .service import PunchService
@@ -41,7 +41,7 @@ def main() -> None:
     service = PunchService(
         config=config,
         store=store,
-        classifier=OpenAIClassifier(config.openai),
+        classifier=RuleBasedClassifier(),
         writer=ExcelTimesheetWriter(config.excel),
     )
     app = build_slack_app(service, bot_token=bot_token)
@@ -61,10 +61,8 @@ def _check_config(config) -> int:  # type: ignore[no-untyped-def]
         ("Excel file exists", lambda: config.excel.path.exists(), True),
         ("Excel password env", lambda: bool(config.excel.password), True),
         ("Database directory writable", lambda: _is_writable_dir(config.database_path.parent), True),
-        ("OpenAI API key env", lambda: bool(config.openai.api_key), False),
         ("slack-bolt import", lambda: _can_import("slack_bolt"), True),
         ("xlwings import", lambda: _can_import("xlwings"), True),
-        ("openai import", lambda: _can_import("openai"), False),
     ]
 
     failed_required = False

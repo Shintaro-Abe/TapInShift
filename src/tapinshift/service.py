@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from .classifier import OpenAIClassifier
+from .classifier import RuleBasedClassifier
 from .config import AppConfig
 from .excel_writer import ExcelTimesheetWriter
 from .models import PunchEvent, PunchType, ReflectionStatus
@@ -18,7 +18,7 @@ class PunchService:
         self,
         config: AppConfig,
         store: EventStore,
-        classifier: OpenAIClassifier,
+        classifier: RuleBasedClassifier,
         writer: ExcelTimesheetWriter,
     ) -> None:
         self.config = config

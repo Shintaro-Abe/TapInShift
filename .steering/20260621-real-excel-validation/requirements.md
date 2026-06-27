@@ -28,8 +28,8 @@ devcontainer 上では Excel アプリを使った xlwings 実書き込みを保
 - 実勤務表はローカルの Git 管理対象外パスに配置する。
 - 検証時は原本ではなく検証用コピーを使う。原本で確認する必要がある場合も、事前に復元可能なバックアップを作成する。
 - Excel パスワードは `TAPINSHIFT_EXCEL_PASSWORD` などの環境変数で渡す。
-- Slack token と OpenAI API key は環境変数で渡す。
-- OpenAI API key が未設定の場合はローカルルール分類へフォールバックする。
+- Slack token は環境変数で渡す。
+- 任意メモはローカルルールで分類する。
 - 実 Excel 書き込み確認は Excel アプリが入った Windows または macOS で行う。
 
 ## 5. 実勤務表マッピング

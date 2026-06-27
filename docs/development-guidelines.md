@@ -75,10 +75,10 @@
 - 検証コマンドで `app_settings` を表示する場合は、表示してよいキーだけを allowlist で出力する。
 - エラー文字列は復旧判断に必要な範囲で保存する。
 
-## 10. OpenAI 分類ルール
+## 10. 任意メモ分類ルール
 
-- 空メモでは OpenAI API を呼ばない。
-- API キー未設定時はローカルルール分類へフォールバックする。
+- 空メモでは分類処理を行わない。
+- 分類はローカルルールで行う。
 - 分類が曖昧な場合は Excel へ反映せず確認待ちにする。
 - 分類結果は `Classification` に正規化してから扱う。
 
@@ -146,7 +146,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 ## 16. セキュリティルール
 
 - 秘密情報をログ、テスト、ドキュメント、コミットに含めない。
-- Slack token、OpenAI API key、Excel password は環境変数で管理する。
+- Slack token、Excel password は環境変数で管理する。
 - Excel password 環境変数が未設定の場合は、Excel を開く前に失敗させる。
 - ユーザー入力は Excel 書き込み前に正規化する。
 - 金額は整数に変換できる場合のみ反映する。

@@ -14,7 +14,7 @@ v1 は自宅 PC またはローカル端末で動作する単一ユーザー向�
 | Slack 連携 | slack-bolt, Socket Mode |
 | 設定 | JSON, python-dotenv, 環境変数 |
 | 監査ログ | SQLite |
-| AI 分類 | OpenAI Responses API |
+| 任意メモ分類 | ローカルルール |
 | Excel 操作 | xlwings |
 | テスト | unittest |
 | パッケージ管理 | pyproject.toml, setuptools |
@@ -28,7 +28,6 @@ graph TD
     APP --> SLACK[Slack Socket Mode]
     APP --> DB[(SQLite)]
     APP --> EXCEL[Excelアプリ/xlwings]
-    APP --> OPENAI[OpenAI API]
 ```
 
 ## 4. 実行環境
@@ -65,7 +64,6 @@ graph TD
 | `excel.date_format` | 日付照合フォーマット |
 | `excel.defaults` | 空セルに入れる既定値 |
 | `time_rounding` | 時刻丸め設定 |
-| `openai` | OpenAI モデルとしきい値 |
 | `slack` | Slack token の環境変数名 |
 
 `time_rounding.mode` は起動時の初期値である。Slack App Home で丸め単位を変更した場合、SQLite の `app_settings` に保存された値が以降の打刻で優先される。
@@ -78,7 +76,6 @@ graph TD
 | --- | --- |
 | `SLACK_BOT_TOKEN` | Slack Bot Token |
 | `SLACK_APP_TOKEN` | Slack App Token |
-| `OPENAI_API_KEY` | OpenAI API Key |
 | `TAPINSHIFT_EXCEL_PASSWORD` | Excel 開封パスワード |
 
 `.env.local` を使う場合も Git 管理対象外にする。
@@ -105,7 +102,7 @@ graph LR
 - 業務判断は `service.py` に集約する。
 - Excel 操作は `excel_writer.py` に閉じる。
 - SQLite 操作は `storage.py` に閉じる。
-- OpenAI 呼び出しとローカル分類は `classifier.py` に閉じる。
+- 任意メモ分類は `classifier.py` に閉じる。
 
 ## 8. 技術的制約
 
@@ -113,7 +110,7 @@ graph LR
 - Slack 操作をクラウドキューへ保存し、後から再処理する仕組みは持たない。
 - xlwings は Excel アプリに依存するため、CI や devcontainer では実 Excel 書き込みを保証しない。
 - Excel ファイルをユーザーが開いている場合、保存失敗や競合が発生する可能性がある。
-- OpenAI API が未設定または利用できない場合、分類精度はローカルルール相当に下がる。
+- 任意メモ分類はローカルルールに依存するため、自由文の分類精度には限界がある。
 
 ## 9. パフォーマンス要件
 

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
 import re
 
-from .config import OpenAIConfig
 from .models import Classification
 
 
@@ -35,93 +33,9 @@ def classify_with_rules(note: str) -> Classification:
     )
 
 
-class OpenAIClassifier:
-    def __init__(self, config: OpenAIConfig) -> None:
-        self.config = config
-
+class RuleBasedClassifier:
     def classify(self, note: str) -> Classification:
-        if not note.strip():
-            return Classification(None, None, None, 1.0, False)
-        if not self.config.api_key:
-            return classify_with_rules(note)
-
-        primary = self._classify_with_model(self.config.primary_model, note)
-        if primary.confidence >= self.config.confidence_threshold and not primary.needs_confirmation:
-            return primary
-
-        fallback = self._classify_with_model(self.config.fallback_model, note)
-        if fallback.confidence < self.config.confidence_threshold:
-            return _normalize_classification(
-                Classification(
-                    notice=fallback.notice,
-                    expense_item=fallback.expense_item,
-                    amount=fallback.amount,
-                    confidence=fallback.confidence,
-                    needs_confirmation=True,
-                )
-            )
-        return _normalize_classification(fallback)
-
-    def _classify_with_model(self, model: str, note: str) -> Classification:
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise RuntimeError("openai package is not installed") from exc
-
-        client = OpenAI(api_key=self.config.api_key)
-        response = client.responses.create(
-            model=model,
-            input=[
-                {
-                    "role": "system",
-                    "content": (
-                        "勤務メモをJSONへ分類してください。"
-                        "届出内容、経費内容、金額が不明な場合はnullにしてください。"
-                        "届出内容は勤務した拠点、建物名、駅名などの場所情報です。"
-                        "経費内容は金額に対応する内容です。交通費の場合は経路のみを入れてください。"
-                        "交通費、経費などのラベルと金額表現はnoticeやexpense_itemには含めないでください。"
-                        "場所情報と経費内容が同じメモに含まれる場合は、それぞれ別の項目へ分離してください。"
-                        "曖昧な場合はneeds_confirmation=trueにしてください。"
-                    ),
-                },
-                {"role": "user", "content": note},
-            ],
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "work_note_classification",
-                    "schema": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "notice": {"type": ["string", "null"]},
-                            "expense_item": {"type": ["string", "null"]},
-                            "amount": {"type": ["integer", "null"]},
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-                            "needs_confirmation": {"type": "boolean"},
-                        },
-                        "required": [
-                            "notice",
-                            "expense_item",
-                            "amount",
-                            "confidence",
-                            "needs_confirmation",
-                        ],
-                    },
-                    "strict": True,
-                }
-            },
-        )
-        data = json.loads(response.output_text)
-        return _normalize_classification(
-            Classification(
-                notice=data["notice"],
-                expense_item=data["expense_item"],
-                amount=data["amount"],
-                confidence=float(data["confidence"]),
-                needs_confirmation=bool(data["needs_confirmation"]),
-            )
-        )
+        return classify_with_rules(note)
 
 
 def _extract_amount(text: str) -> int | None:

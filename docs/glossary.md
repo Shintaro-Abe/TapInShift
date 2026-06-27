@@ -51,8 +51,6 @@
 | Block Kit | Slack UI を構成する JSON ベースの仕組み |
 | xlwings | Python から Excel アプリを操作するライブラリ |
 | SQLite | ローカルファイルとして動作するデータベース |
-| OpenAI Responses API | 任意メモ分類に使う OpenAI API |
-| JSON Schema | OpenAI 分類結果を固定構造で受け取るための schema |
 
 ## 5. コード上の主要名
 
@@ -64,11 +62,10 @@
 | `PunchEvent` | dataclass | 打刻イベント |
 | `AppConfig` | dataclass | アプリケーション全体設定 |
 | `ExcelConfig` | dataclass | Excel 書き込み設定 |
-| `OpenAIConfig` | dataclass | OpenAI 分類設定 |
 | `SlackConfig` | dataclass | Slack token 設定 |
 | `PunchService` | class | 打刻・編集の業務サービス |
 | `EventStore` | class | SQLite 永続化 |
-| `OpenAIClassifier` | class | 任意メモ分類 |
+| `RuleBasedClassifier` | class | ローカルルールによる任意メモ分類 |
 | `ExcelTimesheetWriter` | class | Excel 勤務表書き込み |
 
 ## 6. 状態値
@@ -98,9 +95,6 @@
 | `time_rounding.direction` | 丸め方向 |
 | `time_rounding.clock_in_direction` | 出勤時刻の丸め方向 |
 | `time_rounding.clock_out_direction` | 退勤時刻の丸め方向 |
-| `openai.primary_model` | 主要分類モデル |
-| `openai.fallback_model` | フォールバック分類モデル |
-| `openai.confidence_threshold` | 確認待ち判定の信頼度しきい値 |
 | `app_settings.time_rounding.mode` | Slack UI で選択した丸め単位 |
 
 ## 8. 環境変数
@@ -109,7 +103,6 @@
 | --- | --- |
 | `SLACK_BOT_TOKEN` | Slack Bot Token |
 | `SLACK_APP_TOKEN` | Slack App Token |
-| `OPENAI_API_KEY` | OpenAI API Key |
 | `TAPINSHIFT_EXCEL_PASSWORD` | Excel 開封パスワード |
 
 ## 9. 表記ルール

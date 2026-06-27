@@ -14,11 +14,10 @@ graph TD
     S --> B[Slack Bolt Socket Mode]
     B --> A[tapinshift-agent]
     A --> C[PunchService]
-    C --> CL[OpenAIClassifier]
+    C --> CL[RuleBasedClassifier]
     C --> DB[(SQLite)]
     C --> XW[ExcelTimesheetWriter]
     XW --> XL[ローカルExcel勤務表]
-    CL --> OAI[OpenAI API]
 ```
 
 ## 3. 機能一覧
@@ -57,7 +56,7 @@ sequenceDiagram
     participant Slack as Slack App Home
     participant Agent as tapinshift-agent
     participant Service as PunchService
-    participant Classifier as OpenAIClassifier
+    participant Classifier as RuleBasedClassifier
     participant Store as SQLite
     participant Excel as Excel
 
@@ -134,7 +133,7 @@ sequenceDiagram
 ### 6.2 `config.py`
 
 - JSON 設定ファイルを読み込む。
-- Excel、Slack、OpenAI、時刻丸め、SQLite の設定を dataclass で保持する。
+- Excel、Slack、時刻丸め、SQLite の設定を dataclass で保持する。
 - `time_rounding.mode` は設定ファイル上の初期値として扱い、Slack UI で変更された丸め単位は SQLite の `app_settings` が優先される。
 - 秘密情報は環境変数名だけを設定ファイルに持ち、値は実行時に環境変数から取得する。
 
@@ -156,8 +155,7 @@ sequenceDiagram
 ### 6.5 `classifier.py`
 
 - 任意メモの分類を担当する。
-- OpenAI API キーがある場合は OpenAI Responses API を使う。
-- OpenAI API キーがない場合はローカルルール分類へフォールバックする。
+- キーワードと正規表現によるローカルルール分類を行う。
 
 ### 6.6 `excel_writer.py`
 
@@ -291,7 +289,7 @@ erDiagram
 
 ## 10. API 設計
 
-v1 は公開 HTTP API を持たない。外部連携は Slack Socket Mode と OpenAI API のクライアント呼び出しのみである。
+v1 は公開 HTTP API を持たない。外部連携は Slack Socket Mode のみである。
 
 将来バックエンドを追加する場合は、次の境界を API 化候補とする。
 
@@ -309,5 +307,4 @@ v1 は公開 HTTP API を持たない。外部連携は Slack Socket Mode と Op
 | Excel 対象日なし | 打刻または編集を failed として保存 |
 | 既存セルあり | 打刻を failed として保存 |
 | メモ分類が曖昧 | Excel 反映せず needs_confirmation として保存 |
-| OpenAI API キー未設定 | ローカルルール分類へフォールバック |
 | 金額入力不正 | 手動編集を failed として保存 |

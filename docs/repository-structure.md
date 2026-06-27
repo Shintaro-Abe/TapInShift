@@ -86,7 +86,7 @@ TapInShift/
 | `models.py` | ドメインモデル、Enum |
 | `slack_app.py` | Slack Bolt App、App Home、アクション、モーダル |
 | `service.py` | 打刻・編集のアプリケーションサービス |
-| `classifier.py` | OpenAI 分類、ローカルルール分類 |
+| `classifier.py` | ローカルルールによる任意メモ分類 |
 | `excel_writer.py` | xlwings による Excel 書き込み |
 | `storage.py` | SQLite 初期化、保存、取得 |
 | `time_rounding.py` | 時刻丸め |

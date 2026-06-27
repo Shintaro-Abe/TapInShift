@@ -365,28 +365,24 @@ tapinshift-agent --help</code></pre></div>
 <div class="code-wrap"><button class="copy-btn" type="button" data-target="code-20">コピー</button><pre><code id="code-20" data-lang="powershell">$env:TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
 $env:SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
 $env:SLACK_APP_TOKEN=&quot;xapp-...&quot;</code></pre></div>
-<p>OpenAI 分類を使う場合だけ追加する。</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-21">コピー</button><pre><code id="code-21" data-lang="powershell">$env:OPENAI_API_KEY=&quot;sk-...&quot;</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-22">コピー</button><pre><code id="code-22" data-lang="bash">export TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-21">コピー</button><pre><code id="code-21" data-lang="bash">export TAPINSHIFT_EXCEL_PASSWORD=&quot;Excelのパスワード&quot;
 export SLACK_BOT_TOKEN=&quot;xoxb-...&quot;
 export SLACK_APP_TOKEN=&quot;xapp-...&quot;</code></pre></div>
-<p>OpenAI 分類を使う場合だけ追加する。</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-23">コピー</button><pre><code id="code-23" data-lang="bash">export OPENAI_API_KEY=&quot;sk-...&quot;</code></pre></div>
 <hr>
 <h2>6. 設定チェックを行う</h2>
 <p>手順 3 の一括実行を使った場合、この手順は完了済み。</p>
 <h3>推奨: スクリプトで確認する</h3>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-24">コピー</button><pre><code id="code-24" data-lang="powershell">.\scripts\check-local.ps1</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-22">コピー</button><pre><code id="code-22" data-lang="powershell">.\scripts\check-local.ps1</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-25">コピー</button><pre><code id="code-25" data-lang="bash">bash scripts/check-local.sh</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-23">コピー</button><pre><code id="code-23" data-lang="bash">bash scripts/check-local.sh</code></pre></div>
 <h3>手動で確認する場合</h3>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-26">コピー</button><pre><code id="code-26" data-lang="powershell">python -m unittest discover -s tests
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-24">コピー</button><pre><code id="code-24" data-lang="powershell">python -m unittest discover -s tests
 tapinshift-agent --config config/config.local.json --check-config</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-27">コピー</button><pre><code id="code-27" data-lang="bash">PYTHONPATH=src python3 -m unittest discover -s tests
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-25">コピー</button><pre><code id="code-25" data-lang="bash">PYTHONPATH=src python3 -m unittest discover -s tests
 tapinshift-agent --config config/config.local.json --check-config</code></pre></div>
 <p>期待する結果:</p>
 <table>
@@ -421,7 +417,6 @@ tapinshift-agent --config config/config.local.json --check-config</code></pre></
 <li>slack-bolt import</li>
 <li>xlwings import</li>
 </ul>
-<p>OpenAI を使わない場合、OpenAI API key は <code>SKIP</code> でよい。</p>
 <hr>
 <h2>7. Excel の日付列を確認する</h2>
 <p>手順 3 の一括実行を使った場合、この手順は完了済み。</p>
@@ -430,17 +425,17 @@ tapinshift-agent --config config/config.local.json --check-config</code></pre></
 <p><code>L</code> 列の値が想定と違うと、Excel へ書き込めない。</p>
 <p>次を実行する。</p>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-28">コピー</button><pre><code id="code-28" data-lang="powershell">python scripts\timesheet_tools.py inspect-dates</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-26">コピー</button><pre><code id="code-26" data-lang="powershell">python scripts\timesheet_tools.py inspect-dates</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-29">コピー</button><pre><code id="code-29" data-lang="bash">python3 scripts/timesheet_tools.py inspect-dates</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-27">コピー</button><pre><code id="code-27" data-lang="bash">python3 scripts/timesheet_tools.py inspect-dates</code></pre></div>
 <p>出力例:</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-30">コピー</button><pre><code id="code-30" data-lang="text">L7: datetime.datetime(2026, 6, 1, 0, 0)  [date]
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-28">コピー</button><pre><code id="code-28" data-lang="text">L7: datetime.datetime(2026, 6, 1, 0, 0)  [date]
 L8: datetime.datetime(2026, 6, 2, 0, 0)  [date]
 ---
 日付型: 31 件 / それ以外: 0 件
 判定: すべて日付型。続行してよい。</code></pre></div>
 <p>手動で確認する場合は、Python を起動して次を貼り付ける。</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-31">コピー</button><pre><code id="code-31" data-lang="python">import os
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-29">コピー</button><pre><code id="code-29" data-lang="python">import os
 import xlwings as xw
 
 path = &quot;C:/TapInShiftData/private/202607_3373_勤務表.xlsx&quot;
@@ -478,19 +473,19 @@ app.quit()</code></pre></div>
 <p><code>2026-06-27</code> が見つからない場合は、<code>config/config.local.json</code> の <code>excel.path</code> が正しい勤務表を指しているかを先に確認する。</p>
 <p>対象日の行だけ確認する場合は、次を実行する。</p>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-32">コピー</button><pre><code id="code-32" data-lang="powershell">python scripts\timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-30">コピー</button><pre><code id="code-30" data-lang="powershell">python scripts\timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-33">コピー</button><pre><code id="code-33" data-lang="bash">python3 scripts/timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-31">コピー</button><pre><code id="code-31" data-lang="bash">python3 scripts/timesheet_tools.py find-date --date 2026-06-27</code></pre></div>
 <p>期待する結果:</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-34">コピー</button><pre><code id="code-34" data-lang="text">OK: 2026-06-27 は L33 に一致しました: 27.0 [day_number]</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-32">コピー</button><pre><code id="code-32" data-lang="text">OK: 2026-06-27 は L33 に一致しました: 27.0 [day_number]</code></pre></div>
 <hr>
 <h2>8. TapInShift を起動する</h2>
 <p>手順 3 の一括実行で <code>-StartAgent</code> または <code>--start-agent</code> を付けた場合、この手順は完了済み。</p>
 <p>設定チェックが通ったら、TapInShift を起動する。</p>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-35">コピー</button><pre><code id="code-35" data-lang="powershell">tapinshift-agent --config config/config.local.json</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-33">コピー</button><pre><code id="code-33" data-lang="powershell">tapinshift-agent --config config/config.local.json</code></pre></div>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-36">コピー</button><pre><code id="code-36" data-lang="bash">tapinshift-agent --config config/config.local.json</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-34">コピー</button><pre><code id="code-34" data-lang="bash">tapinshift-agent --config config/config.local.json</code></pre></div>
 <p>起動中はターミナルを閉じない。</p>
 <p>このターミナルが動いている間だけ Slack UI から反映できる。</p>
 <hr>
@@ -571,7 +566,6 @@ app.quit()</code></pre></div>
 </tr>
 </tbody>
 </table>
-<p>OpenAI API key を設定していない場合は、ローカルルールで分類する。</p>
 <p>現時点のローカルルールは、金額付きの内容を経費側、金額なしの場所情報を届出側として <code>W/Y/AB</code> に分離して反映する。</p>
 <h3>9.4.1 後から任意メモを反映する</h3>
 <p>出勤・退勤を先に押した後でも、任意メモだけを後から反映できる。</p>
@@ -607,18 +601,18 @@ app.quit()</code></pre></div>
 <h3>推奨: スクリプトで確認する</h3>
 <p>この方法は Python だけで確認できる。Windows に <code>sqlite3</code> コマンドが入っていなくてもよい。</p>
 <h3>Windows PowerShell</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-37">コピー</button><pre><code id="code-37" data-lang="powershell">python scripts\timesheet_tools.py show-db --limit 5</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-35">コピー</button><pre><code id="code-35" data-lang="powershell">python scripts\timesheet_tools.py show-db --limit 5</code></pre></div>
 <p>実機検証で <code>config/config.local.json</code> の <code>database_path</code> を <code>C:\TapInShiftData\tapinshift.sqlite3</code> にしている場合も、上のコマンドで同じ設定を読み込む。</p>
 <h3>macOS</h3>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-38">コピー</button><pre><code id="code-38" data-lang="bash">python3 scripts/timesheet_tools.py show-db --limit 5</code></pre></div>
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-36">コピー</button><pre><code id="code-36" data-lang="bash">python3 scripts/timesheet_tools.py show-db --limit 5</code></pre></div>
 <p><code>show-db</code> は <code>punch_events</code>、<code>manual_edits</code>、表示許可された <code>app_settings</code> を表示する。現時点で表示する <code>app_settings</code> は <code>time_rounding.mode</code> のみ。</p>
 <h3>手動で確認する場合</h3>
 <p><code>sqlite3</code> コマンドが使える環境だけで実行する。</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-39">コピー</button><pre><code id="code-39" data-lang="bash">sqlite3 data/tapinshift.sqlite3 &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-37">コピー</button><pre><code id="code-37" data-lang="bash">sqlite3 data/tapinshift.sqlite3 &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
 sqlite3 data/tapinshift.sqlite3 &quot;SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;&quot;
 sqlite3 data/tapinshift.sqlite3 &quot;SELECT key,value FROM app_settings WHERE key=&#x27;time_rounding.mode&#x27;;&quot;</code></pre></div>
 <p>Windows 実機で直接 SQLite を見る場合:</p>
-<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-40">コピー</button><pre><code id="code-40" data-lang="powershell">sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
+<div class="code-wrap"><button class="copy-btn" type="button" data-target="code-38">コピー</button><pre><code id="code-38" data-lang="powershell">sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;&quot;
 sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;&quot;
 sqlite3 &quot;C:\TapInShiftData\tapinshift.sqlite3&quot; &quot;SELECT key,value FROM app_settings WHERE key=&#x27;time_rounding.mode&#x27;;&quot;</code></pre></div>
 <p>確認すること:</p>

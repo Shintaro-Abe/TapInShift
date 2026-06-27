@@ -58,7 +58,7 @@ GitHub 側の Codex review は重大な問題に絞られるため、細かい�
 Use $codex-security:security-diff-scan to review my current uncommitted changes for security regressions.
 ```
 
-TapInShift では、Slack token、OpenAI API key、Excel password、SQLite、実 Excel ファイルを扱うため、リリース前や大きめの変更では security diff scan を推奨する。
+TapInShift では、Slack token、Excel password、SQLite、実 Excel ファイルを扱うため、リリース前や大きめの変更では security diff scan を推奨する。
 
 ## 3. レビュー後の処理
 

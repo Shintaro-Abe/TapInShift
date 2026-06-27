@@ -61,18 +61,6 @@ class RoundingConfig:
 
 
 @dataclass(frozen=True)
-class OpenAIConfig:
-    primary_model: str
-    fallback_model: str
-    api_key_env: str
-    confidence_threshold: float
-
-    @property
-    def api_key(self) -> str | None:
-        return os.getenv(self.api_key_env)
-
-
-@dataclass(frozen=True)
 class SlackConfig:
     bot_token_env: str
     app_token_env: str
@@ -92,7 +80,6 @@ class AppConfig:
     database_path: Path
     excel: ExcelConfig
     time_rounding: RoundingConfig
-    openai: OpenAIConfig
     slack: SlackConfig
 
 
@@ -135,12 +122,6 @@ def load_config(path: str | Path) -> AppConfig:
             ),
         ),
         time_rounding=_load_rounding_config(raw.get("time_rounding", {})),
-        openai=OpenAIConfig(
-            primary_model=raw.get("openai", {}).get("primary_model", "gpt-5.4-nano"),
-            fallback_model=raw.get("openai", {}).get("fallback_model", "gpt-5.4-mini"),
-            api_key_env=raw.get("openai", {}).get("api_key_env", "OPENAI_API_KEY"),
-            confidence_threshold=float(raw.get("openai", {}).get("confidence_threshold", 0.75)),
-        ),
         slack=SlackConfig(
             bot_token_env=raw.get("slack", {}).get("bot_token_env", "SLACK_BOT_TOKEN"),
             app_token_env=raw.get("slack", {}).get("app_token_env", "SLACK_APP_TOKEN"),

@@ -343,24 +343,12 @@ $env:SLACK_BOT_TOKEN="xoxb-..."
 $env:SLACK_APP_TOKEN="xapp-..."
 ```
 
-OpenAI 分類を使う場合だけ追加する。
-
-```powershell
-$env:OPENAI_API_KEY="sk-..."
-```
-
 ### macOS
 
 ```bash
 export TAPINSHIFT_EXCEL_PASSWORD="Excelのパスワード"
 export SLACK_BOT_TOKEN="xoxb-..."
 export SLACK_APP_TOKEN="xapp-..."
-```
-
-OpenAI 分類を使う場合だけ追加する。
-
-```bash
-export OPENAI_API_KEY="sk-..."
 ```
 
 ---
@@ -416,8 +404,6 @@ tapinshift-agent --config config/config.local.json --check-config
 - Database directory writable
 - slack-bolt import
 - xlwings import
-
-OpenAI を使わない場合、OpenAI API key は `SKIP` でよい。
 
 ---
 
@@ -590,7 +576,6 @@ Slack で作成した App を開く。
 | `渋谷オフィス 新宿駅-渋谷駅 1200円` | `W` 列に `渋谷オフィス`、`Y` 列に `新宿駅-渋谷駅`、`AB` 列に `1200` |
 | `アレア品川、南平⇔市ヶ谷、1134` | `W` 列に `アレア品川`、`Y` 列に `南平⇔市ヶ谷`、`AB` 列に `1134` |
 
-OpenAI API key を設定していない場合は、ローカルルールで分類する。
 現時点のローカルルールは、金額付きの内容を経費側、金額なしの場所情報を届出側として `W/Y/AB` に分離して反映する。
 
 ### 9.4.1 後から任意メモを反映する

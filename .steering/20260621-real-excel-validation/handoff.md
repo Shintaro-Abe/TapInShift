@@ -71,7 +71,7 @@
   - 出勤・退勤ごとの丸め方向 `clock_in_direction` / `clock_out_direction` を追加した。
 - `src/tapinshift/classifier.py`
   - 金額表現は `amount` のみに入れ、`notice` / `expense_item` から除去するようにした。
-  - OpenAI 分類プロンプトにも同じ制約を追加した。
+  - 任意メモ分類はローカルルールで行う。
 - `docs/` と実機検証ランブック
   - 後追いメモ反映と「金額は金額欄のみ」の仕様を反映した。
   - `.steering/20260621-real-excel-validation/validation-runbook.md` / `.html` を更新した。
@@ -134,7 +134,7 @@ python scripts\timesheet_tools.py find-date --date 2026-06-27
 - `config/config.local.json` は Git 管理対象外。実機では `database_path` が `C:\TapInShiftData\tapinshift.sqlite3` を指している必要がある。
 - `C:\Users\color\OneDrive\Codex\TapInShift\data\tapinshift.sqlite3` を見に行く場合は、古い設定または `--config` 未指定の可能性がある。
 - `202606_3373_勤務表.xlsx` は今回の対象ではない。現在の対象は `202607_3373_勤務表.xlsx`。
-- 実勤務表、検証用コピー、SQLite、Slack token、OpenAI API key、Excel パスワードは Git 管理対象に含めない。
+- 実勤務表、検証用コピー、SQLite、Slack token、Excel パスワードは Git 管理対象に含めない。
 - Excel パスワードは `TAPINSHIFT_EXCEL_PASSWORD` などの環境変数で渡す。
 - Excel COM エラー `RPC サーバーを利用できません。` は Excel プロセス・ブック状態・COM セッション切断が原因になり得る。Excel を閉じて再起動し、エージェントも再起動してから再試行する。
 

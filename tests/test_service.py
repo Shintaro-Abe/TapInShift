@@ -13,7 +13,6 @@ from tapinshift.config import (
     ExcelColumns,
     ExcelConfig,
     ExcelDefaults,
-    OpenAIConfig,
     RoundingConfig,
     SlackConfig,
 )
@@ -343,12 +342,6 @@ def _config(base: Path, rounding: RoundingConfig | None = None) -> AppConfig:
             defaults=ExcelDefaults(table=1, attendance=1, late=0, early=0),
         ),
         time_rounding=rounding or RoundingConfig(mode="none", direction="nearest"),
-        openai=OpenAIConfig(
-            primary_model="gpt-5.4-nano",
-            fallback_model="gpt-5.4-mini",
-            api_key_env="OPENAI_API_KEY",
-            confidence_threshold=0.75,
-        ),
         slack=SlackConfig(bot_token_env="SLACK_BOT_TOKEN", app_token_env="SLACK_APP_TOKEN"),
     )
 
