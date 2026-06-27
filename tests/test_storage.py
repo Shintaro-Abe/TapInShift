@@ -32,8 +32,8 @@ class EventStoreTest(unittest.TestCase):
                 punch_type=PunchType.CLOCK_IN,
                 tapped_at=datetime(2026, 6, 21, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
                 reflected_at=None,
-                note="交通費320円",
-                classification=Classification("遅延", "交通費320円", 320, 0.9, False),
+                note="渋谷オフィス 新宿駅-渋谷駅 320円",
+                classification=Classification("渋谷オフィス", "新宿駅-渋谷駅", 320, 0.9, False),
                 status=ReflectionStatus.PENDING,
             )
 

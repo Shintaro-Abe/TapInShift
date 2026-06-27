@@ -180,7 +180,7 @@ def _home_view(
                 "element": {
                     "type": "plain_text_input",
                     "action_id": NOTE_ACTION_ID,
-                    "placeholder": {"type": "plain_text", "text": "例: 遅延証明あり 交通費1200円"},
+                    "placeholder": {"type": "plain_text", "text": "例: 渋谷オフィス 新宿駅-渋谷駅 1200円"},
                 },
                 "label": {"type": "plain_text", "text": "任意メモ"},
             },
@@ -284,8 +284,8 @@ def _edit_modal(selected_date: str, events: list) -> dict:
             },
             _plain_input("出勤", EDIT_CLOCK_IN, initial["clock_in"], "09:00"),
             _plain_input("退勤", EDIT_CLOCK_OUT, initial["clock_out"], "18:00"),
-            _plain_input("届出内容", EDIT_NOTICE, initial["notice"], "遅延証明あり"),
-            _plain_input("経費内容", EDIT_EXPENSE, initial["expense_item"], "交通費"),
+            _plain_input("届出内容", EDIT_NOTICE, initial["notice"], "渋谷オフィス"),
+            _plain_input("経費内容", EDIT_EXPENSE, initial["expense_item"], "新宿駅-渋谷駅"),
             _plain_input("金額", EDIT_AMOUNT, initial["amount"], "320"),
             {
                 "type": "context",

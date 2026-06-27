@@ -9,8 +9,9 @@ from .models import Classification
 
 AMOUNT_RE = re.compile(r"(?P<amount>\d{2,7})\s*円?")
 AMOUNT_TEXT_RE = re.compile(r"[¥￥]?\s*\d[\d,]{1,6}\s*円?")
-EXPENSE_KEYWORDS = ("交通費", "電車", "バス", "タクシー", "昼食", "宿泊", "経費", "駐車")
-NOTICE_KEYWORDS = ("遅延", "休暇", "早退", "遅刻", "欠勤", "在宅", "直行", "直帰")
+EXPENSE_LABELS = ("交通費", "経費", "電車", "バス", "タクシー", "昼食", "宿泊", "駐車")
+LOCATION_KEYWORDS = ("拠点", "本社", "支社", "営業所", "オフィス", "ビル", "タワー", "センター", "駅")
+ROUTE_SEPARATORS = ("-", "ー", "〜", "~", "→", "->", "から")
 
 
 def classify_with_rules(note: str) -> Classification:
@@ -20,9 +21,7 @@ def classify_with_rules(note: str) -> Classification:
 
     amount = _extract_amount(text)
     content_text = _strip_amount_text(text)
-    has_expense = amount is not None or any(keyword in text for keyword in EXPENSE_KEYWORDS)
-    has_notice = any(keyword in text for keyword in NOTICE_KEYWORDS)
-    notice, expense_item = _split_notice_and_expense(content_text, has_notice=has_notice, has_expense=has_expense)
+    notice, expense_item = _classify_content(content_text, has_amount=amount is not None)
     confidence = 0.75 if expense_item or notice else 0.35
 
     return _normalize_classification(
@@ -78,8 +77,10 @@ class OpenAIClassifier:
                     "content": (
                         "勤務メモをJSONへ分類してください。"
                         "届出内容、経費内容、金額が不明な場合はnullにしてください。"
-                        "金額はamountにだけ入れ、noticeやexpense_itemには金額表現を含めないでください。"
-                        "届出内容と経費内容が同じメモに含まれる場合は、それぞれ別の項目へ分離してください。"
+                        "届出内容は勤務した拠点、建物名、駅名などの場所情報です。"
+                        "経費内容は金額に対応する内容です。交通費の場合は経路のみを入れてください。"
+                        "交通費、経費などのラベルと金額表現はnoticeやexpense_itemには含めないでください。"
+                        "場所情報と経費内容が同じメモに含まれる場合は、それぞれ別の項目へ分離してください。"
                         "曖昧な場合はneeds_confirmation=trueにしてください。"
                     ),
                 },
@@ -138,36 +139,45 @@ def _strip_amount_text(text: str | None) -> str | None:
     return stripped or None
 
 
-def _split_notice_and_expense(
-    text: str | None,
-    *,
-    has_notice: bool,
-    has_expense: bool,
-) -> tuple[str | None, str | None]:
+def _classify_content(text: str | None, *, has_amount: bool) -> tuple[str | None, str | None]:
     if text is None:
         return None, None
-    if has_notice and has_expense:
-        expense_span = _expense_span(text)
-        if expense_span:
-            start, end = expense_span
-            expense_item = _cleanup_text(text[start:end])
-            notice = _cleanup_text(f"{text[:start]} {text[end:]}")
-            return notice or None, expense_item or None
-    expense_item = text if has_expense else None
-    notice = text if has_notice else None
-    return notice, expense_item
+    if not has_amount:
+        return (text, None) if _looks_like_location(text) else (None, None)
+
+    expense_text = _strip_expense_labels(text)
+    if expense_text is None:
+        return None, None
+
+    parts = expense_text.split()
+    if len(parts) <= 1:
+        return None, expense_text
+
+    route_parts = [part for part in parts if _looks_like_route(part)]
+    if route_parts:
+        notice = _cleanup_text(" ".join(part for part in parts if part not in route_parts))
+        expense_item = _cleanup_text(" ".join(route_parts))
+        return notice or None, expense_item or None
+
+    return None, expense_text
 
 
-def _expense_span(text: str) -> tuple[int, int] | None:
-    starts = [index for keyword in EXPENSE_KEYWORDS if (index := text.find(keyword)) >= 0]
-    if not starts:
+def _looks_like_location(text: str) -> bool:
+    return any(keyword in text for keyword in LOCATION_KEYWORDS)
+
+
+def _looks_like_route(text: str) -> bool:
+    return any(separator in text for separator in ROUTE_SEPARATORS)
+
+
+def _strip_expense_labels(text: str | None) -> str | None:
+    if text is None:
         return None
-    start = min(starts)
-    notice_starts_after_expense = [
-        index for keyword in NOTICE_KEYWORDS if (index := text.find(keyword, start + 1)) >= 0
-    ]
-    end = min(notice_starts_after_expense) if notice_starts_after_expense else len(text)
-    return start, end
+    result = text
+    for label in EXPENSE_LABELS:
+        result = result.replace(label, " ")
+    cleaned = _cleanup_text(result)
+    return cleaned or None
 
 
 def _cleanup_text(text: str) -> str:

@@ -56,7 +56,7 @@ class PunchServiceTest(unittest.TestCase):
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification(None, "交通費", 320, 0.9, False)),
+                classifier=FakeClassifier(Classification(None, "新宿駅-渋谷駅", 320, 0.9, False)),
                 writer=writer,
             )
 
@@ -64,7 +64,7 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="交通費320円",
+                note="新宿駅-渋谷駅 320円",
                 tapped_at=datetime(2026, 6, 21, 9, 8, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
@@ -254,7 +254,7 @@ class PunchServiceTest(unittest.TestCase):
             status = service.update_day(
                 slack_user_id="U123",
                 target_date="2026-06-21",
-                values={"clock_in": "", "clock_out": "", "notice": "", "expense_item": "交通費", "amount": "1,200円"},
+                values={"clock_in": "", "clock_out": "", "notice": "", "expense_item": "新宿駅-渋谷駅", "amount": "1,200円"},
             )
 
             self.assertEqual(status, ReflectionStatus.REFLECTED)
@@ -273,28 +273,28 @@ class PunchServiceTest(unittest.TestCase):
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification("遅延証明あり", "交通費", 320, 0.9, False)),
+                classifier=FakeClassifier(Classification("渋谷オフィス", "新宿駅-渋谷駅", 320, 0.9, False)),
                 writer=writer,
             )
 
             status, error = service.apply_note_to_day(
                 slack_user_id="U123",
                 target_date="2026-06-21",
-                note="遅延証明あり 交通費320円",
+                note="渋谷オフィス 新宿駅-渋谷駅 320円",
             )
 
             self.assertEqual(status, ReflectionStatus.REFLECTED)
             self.assertIsNone(error)
             self.assertEqual(writer.update_calls[0]["clock_in"], None)
             self.assertEqual(writer.update_calls[0]["clock_out"], None)
-            self.assertEqual(writer.update_calls[0]["notice"], "遅延証明あり")
-            self.assertEqual(writer.update_calls[0]["expense_item"], "交通費")
+            self.assertEqual(writer.update_calls[0]["notice"], "渋谷オフィス")
+            self.assertEqual(writer.update_calls[0]["expense_item"], "新宿駅-渋谷駅")
             self.assertEqual(writer.update_calls[0]["amount"], 320)
             with closing(sqlite3.connect(db_path)) as conn:
                 row = conn.execute("SELECT status, notice, expense_item, amount FROM manual_edits").fetchone()
             self.assertEqual(row[0], ReflectionStatus.REFLECTED.value)
-            self.assertEqual(row[1], "遅延証明あり")
-            self.assertEqual(row[2], "交通費")
+            self.assertEqual(row[1], "渋谷オフィス")
+            self.assertEqual(row[2], "新宿駅-渋谷駅")
             self.assertEqual(row[3], 320)
 
     def test_apply_note_to_day_records_empty_note_as_failed(self) -> None:

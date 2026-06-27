@@ -55,14 +55,14 @@ class ExcelWriterHelperTest(unittest.TestCase):
             clock_in=None,
             clock_out="18:30",
             notice=None,
-            expense_item="交通費",
+            expense_item="新宿駅-渋谷駅",
             amount=None,
         )
 
         self.assertEqual(sheet.range("F7").value, "keep clock in")
         self.assertEqual(sheet.range("G7").value, "18:30")
         self.assertEqual(sheet.range("W7").value, "keep notice")
-        self.assertEqual(sheet.range("Y7").value, "交通費")
+        self.assertEqual(sheet.range("Y7").value, "新宿駅-渋谷駅")
         self.assertEqual(sheet.range("AB7").value, 999)
 
     def test_find_row_accepts_day_number_date_cells(self) -> None:
