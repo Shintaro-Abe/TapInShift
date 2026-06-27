@@ -55,12 +55,14 @@
 - アクションは必ず `ack()` する。
 - App Home の状態表示はユーザーが次に取る行動を判断できる文言にする。
 - Slack UI の変更時は `tests/test_slack_app.py` で構造を固定する。
+- App Home から変更する実行時設定はサービス層経由で SQLite に保存する。
 
 ## 8. Excel 実装ルール
 
 - Excel 操作は `excel_writer.py` に閉じる。
 - 打刻時は既存の出勤・退勤セルを上書きしない。
 - 手動編集時のみ上書きを許可する。
+- 手動編集で空欄の項目は既存 Excel 値を保持する。
 - Excel の列、行範囲、日付形式は設定ファイルから取得する。
 - Excel 書き込み失敗は握りつぶさず、サービス層で failed として保存する。
 
@@ -69,6 +71,7 @@
 - スキーマ変更は `EventStore.initialize()` に反映する。
 - 打刻イベントは `slack_event_id` を主キーにする。
 - 手動編集は追記履歴として保存する。
+- App Home で変更したアプリ設定は key-value の `app_settings` に保存する。
 - エラー文字列は復旧判断に必要な範囲で保存する。
 
 ## 10. OpenAI 分類ルール
@@ -97,6 +100,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 - 分類ロジック。
 - 時刻丸め。
 - SQLite 保存・取得。
+- 設定読み込み。
 - サービス層の成功、確認待ち、失敗。
 - Slack view 構造。
 
@@ -137,4 +141,3 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 - ユーザー入力は Excel 書き込み前に正規化する。
 - 金額は整数に変換できる場合のみ反映する。
 - 失敗時のエラーに秘密情報が含まれないよう注意する。
-

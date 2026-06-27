@@ -1,6 +1,6 @@
 # 次回セッション引継ぎ
 
-> 更新: 2026-06-27。Slack UI 実機テスト成功確認済みの状態に更新。
+> 更新: 2026-06-27。Slack UI 実機テスト成功確認、丸め単位 UI 追加、コミット・プッシュ済みの状態に更新。
 
 ## 現状
 
@@ -27,6 +27,8 @@
 - SQLite の `punch_events` に `reflected` として保存されることを確認済み。
 - 既存の出勤セルへ再打刻した場合、`Cell already has a value: F13` として `failed` 保存されることを確認済み。
 - Slack UI の `メモ反映` 機能は実機テスト成功確認済み。
+- Slack App Home から丸め単位を選択できる実装を追加済み。
+- 丸め単位の選択値は SQLite の `app_settings` に保存され、以降の出勤・退勤で `config/config.local.json` の `time_rounding.mode` より優先される。
 
 確認済みの DB 例:
 
@@ -53,12 +55,19 @@
   - Excel COM への `datetime.time` 書き込みを避け、`HH:MM` 文字列で出退勤時刻を書くようにした。
 - `src/tapinshift/storage.py`
   - SQLite 接続の close 漏れを防ぐようにした。
+  - `app_settings` テーブルを追加し、Slack UI で変更した丸め単位を保存できるようにした。
 - `src/tapinshift/slack_app.py`
   - App Home に `メモ反映` ボタンを追加した。
   - 日付選択状態を使い、任意メモを後から選択日に反映できるようにした。
+  - App Home に丸め単位選択を追加した。
 - `src/tapinshift/service.py`
   - `apply_note_to_day` を追加し、任意メモから `W/Y/AB` だけを後追い更新できるようにした。
   - 出勤・退勤セルは後追いメモ反映では変更しない。
+  - `current_rounding_mode` / `update_rounding_mode` を追加し、Slack UI の丸め単位を打刻へ反映できるようにした。
+- `src/tapinshift/time_rounding.py`
+  - 対応丸め単位を `none`, `5m`, `10m`, `15m`, `20m`, `30m` として公開した。
+- `src/tapinshift/config.py`
+  - 出勤・退勤ごとの丸め方向 `clock_in_direction` / `clock_out_direction` を追加した。
 - `src/tapinshift/classifier.py`
   - 金額表現は `amount` のみに入れ、`notice` / `expense_item` から除去するようにした。
   - OpenAI 分類プロンプトにも同じ制約を追加した。
@@ -77,8 +86,14 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 結果:
 
 ```text
-Ran 22 tests in 0.148s
+Ran 29 tests in 0.309s
 OK
+```
+
+GitHub `origin/main` へ以下を push 済み。
+
+```text
+6ebabe0 Add TapInShift Slack Excel workflow
 ```
 
 ## 現在の運用コマンド
@@ -119,17 +134,19 @@ python scripts\timesheet_tools.py find-date --date 2026-06-27
 ## 残作業
 
 1. `tasklist.md` のチェック状態を、2026-06-27 の実機成功結果に合わせて更新する。
-2. `manual_edits` の最新履歴を `show-db` で確認し、`メモ反映` の成功が `reflected` として残っていることを記録する。
-3. 日付選択から編集モーダルを開き、直接編集保存が期待どおり Excel と SQLite に残ることを確認する。
-4. 失敗系を必要範囲で確認する。
+   - 完了済み。最新の `tasklist.md` は実機成功分と丸め UI 実装分を反映済み。
+2. Slack UI で丸め単位を変更し、`app_settings` に `time_rounding.mode` が保存されることを実機で確認する。
+3. `manual_edits` の最新履歴を `show-db` で確認し、`メモ反映` の成功が `reflected` として残っていることを記録する。
+4. 日付選択から編集モーダルを開き、直接編集保存が期待どおり Excel と SQLite に残ることを確認する。
+5. 失敗系を必要範囲で確認する。
    - 対象日なし
    - パスワード未設定
    - 既存セル上書き防止
    - 分類確認待ち `needs_confirmation`
-5. 複合メモの分離精度を運用判断する。
+6. 複合メモの分離精度を運用判断する。
    - 現状: 金額は `AB` のみに入る。
    - 例: `遅延証明あり 交通費1200円` の文言を `W=遅延証明あり`, `Y=交通費`, `AB=1200` まで分けるかは未判断。
-6. 完了判断後、`.steering/20260621-real-excel-validation/tasklist.md` の §8〜§12 を締める。
+7. 完了判断後、`.steering/20260621-real-excel-validation/tasklist.md` の §8〜§12 を締める。
 
 ## 次回再開時の最短手順
 
@@ -157,7 +174,7 @@ python -m pip install -e .
 .\scripts\validate-local.ps1 -SkipCopy -StartAgent
 ```
 
-5. Slack UI で出勤、退勤、メモ反映、編集モーダルを確認する。
+5. Slack UI で丸め単位選択、出勤、退勤、メモ反映、編集モーダルを確認する。
 
 6. SQLite を確認する。
 

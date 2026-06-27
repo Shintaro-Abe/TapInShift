@@ -31,6 +31,7 @@ graph TD
 | 任意メモ分類 | メモから届出・経費・金額を分類する | `classifier.py` |
 | 日別編集 | 日付選択から編集モーダルを開き、対象日を上書きする | `slack_app.py`, `service.py` |
 | 監査ログ | 打刻と手動編集の履歴を SQLite に保存する | `storage.py` |
+| 丸め単位変更 | App Home で選択した丸め単位を保存し、以降の打刻へ適用する | `slack_app.py`, `service.py`, `storage.py` |
 | 設定診断 | 起動前に環境変数、Excel、依存関係を確認する | `app.py` |
 
 ## 4. ユースケース
@@ -43,6 +44,7 @@ flowchart LR
     User --> UC3[任意メモを分類して反映する]
     User --> UC4[対象日を編集する]
     User --> UC5[反映失敗を確認する]
+    User --> UC6[丸め単位を変更する]
 ```
 
 ## 5. 主要フロー
@@ -77,7 +79,25 @@ sequenceDiagram
     Agent->>Slack: App Home 状態更新
 ```
 
-### 5.2 日別編集フロー
+### 5.2 丸め単位変更フロー
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant Slack as Slack App Home
+    participant Agent as tapinshift-agent
+    participant Service as PunchService
+    participant Store as SQLite
+
+    User->>Slack: 丸め単位を選択
+    Slack->>Agent: static_select payload
+    Agent-->>Slack: ack
+    Agent->>Service: update_rounding_mode(mode)
+    Service->>Store: set_setting(time_rounding.mode)
+    Agent->>Slack: App Home 状態更新
+```
+
+### 5.3 日別編集フロー
 
 ```mermaid
 sequenceDiagram
@@ -115,12 +135,14 @@ sequenceDiagram
 
 - JSON 設定ファイルを読み込む。
 - Excel、Slack、OpenAI、時刻丸め、SQLite の設定を dataclass で保持する。
+- `time_rounding.mode` は設定ファイル上の初期値として扱い、Slack UI で変更された丸め単位は SQLite の `app_settings` が優先される。
 - 秘密情報は環境変数名だけを設定ファイルに持ち、値は実行時に環境変数から取得する。
 
 ### 6.3 `slack_app.py`
 
 - Slack Bolt App を構築する。
 - App Home、ボタンアクション、日付選択、編集モーダル送信を処理する。
+- 丸め単位の `static_select` を表示し、選択変更を `PunchService` に委譲する。
 - Slack UI は Block Kit のみで構成する。
 - ビジネスロジックは `PunchService` に委譲する。
 
@@ -128,6 +150,7 @@ sequenceDiagram
 
 - 打刻と編集のアプリケーションサービス。
 - 現在時刻取得、時刻丸め、分類、Excel 書き込み、SQLite 保存を統合する。
+- 丸め単位は `EventStore.get_setting("time_rounding.mode")` を優先し、未設定時は `AppConfig.time_rounding.mode` を使う。
 - Excel 反映失敗時も SQLite に状態とエラーを保存する。
 
 ### 6.5 `classifier.py`
@@ -148,6 +171,7 @@ sequenceDiagram
 - SQLite の初期化と読み書きを担当する。
 - 打刻イベントは `slack_event_id` を主キーとして upsert する。
 - 手動編集は追記履歴として保存する。
+- UI で変更したアプリ設定は `app_settings` に key-value で保存する。
 
 ## 7. データモデル
 
@@ -195,6 +219,12 @@ erDiagram
         text error
         text created_at
     }
+
+    app_settings {
+        text key PK
+        text value
+        text updated_at
+    }
 ```
 
 ## 8. Slack 画面設計
@@ -208,7 +238,7 @@ erDiagram
 | 任意メモ                          |
 | [交通費320円、遅延証明あり]        |
 +----------------------------------+
-| [出勤] [退勤]                     |
+| [出勤] [退勤] [メモ反映]           |
 +----------------------------------+
 | 表示・編集する日付                 |
 | [yyyy-mm-dd]                      |
@@ -254,7 +284,7 @@ erDiagram
 ### 9.3 手動編集時の書き込み
 
 - 出勤、退勤、届出内容、経費内容、金額を上書きする。
-- 空欄は `None` として扱い、Excel 側の値を空にする。
+- 空欄は `None` として扱い、Excel 側の既存値を保持する。セルを消す操作は Excel 上で直接行う。
 - 金額は整数へ変換する。変換できない場合は失敗として保存する。
 
 ## 10. API 設計

@@ -89,6 +89,7 @@ TapInShift/
 | ファイル | 対象 |
 | --- | --- |
 | `test_classifier.py` | ローカル分類 |
+| `test_config.py` | 設定読み込み |
 | `test_storage.py` | SQLite 保存・取得 |
 | `test_time_rounding.py` | 時刻丸め |
 | `test_service.py` | サービス層の接続 |
@@ -128,18 +129,20 @@ TapInShift/
 
 補助スクリプトを配置する。
 
-現在は開発支援やスキル導入に関するスクリプトを置く。
+現在はローカルセットアップ、設定確認、実機検証補助、ランブック HTML 生成、スキル導入に関するスクリプトを置く。
 
 ## 12. 生成物・除外対象
 
 次は Git 管理対象外とする。
 
 - `.venv/`
+- `.venv-*/`
 - `.env`, `.env.*`
 - `config/config.local.json`
 - `data/`
 - `__pycache__/`
 - `*.pyc`
+- `*.egg-info/`
 - 認証情報やローカルセッション情報
 
 ## 13. 配置ルール
@@ -150,4 +153,3 @@ TapInShift/
 - 作業単位の一時ドキュメントは `.steering/` に置く。
 - ローカル設定、Excel、SQLite、秘密情報は Git 管理対象にしない。
 - 外部公開しない調査メモは `research/` に置く。
-

@@ -68,6 +68,8 @@ graph TD
 | `openai` | OpenAI モデルとしきい値 |
 | `slack` | Slack token の環境変数名 |
 
+`time_rounding.mode` は起動時の初期値である。Slack App Home で丸め単位を変更した場合、SQLite の `app_settings` に保存された値が以降の打刻で優先される。
+
 ## 6. 秘密情報
 
 秘密情報は設定ファイルに直接保存しない。
@@ -124,6 +126,7 @@ graph LR
 
 - Excel 反映に失敗しても打刻イベントは SQLite に保存する。
 - 失敗内容は `error` として保存する。
+- Slack UI で変更した丸め単位は SQLite に保存し、再起動後も維持する。
 - 手動編集で Excel を上書きして復旧する。
 - v1 では自動リトライは実装しない。
 
@@ -149,4 +152,4 @@ graph LR
 .venv/bin/tapinshift-agent --config config/config.local.json
 ```
 
-実機確認では Slack App Home 表示、出勤、退勤、日付編集、Excel 反映、失敗時ログ保存を確認する。
+実機確認では Slack App Home 表示、丸め単位選択、出勤、退勤、日付編集、Excel 反映、失敗時ログ保存を確認する。

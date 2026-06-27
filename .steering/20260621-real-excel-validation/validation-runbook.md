@@ -645,6 +645,7 @@ python3 scripts/timesheet_tools.py show-db --limit 5
 ```bash
 sqlite3 data/tapinshift.sqlite3 "SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;"
 sqlite3 data/tapinshift.sqlite3 "SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;"
+sqlite3 data/tapinshift.sqlite3 "SELECT key,value FROM app_settings WHERE key='time_rounding.mode';"
 ```
 
 Windows 実機で直接 SQLite を見る場合:
@@ -652,6 +653,7 @@ Windows 実機で直接 SQLite を見る場合:
 ```powershell
 sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;"
 sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT target_date,status,error FROM manual_edits ORDER BY id DESC LIMIT 5;"
+sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT key,value FROM app_settings WHERE key='time_rounding.mode';"
 ```
 
 確認すること:
@@ -661,6 +663,8 @@ sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT target_date,status,error 
 | `reflected` | Excel へ反映済み |
 | `needs_confirmation` | メモ確認待ち |
 | `failed` | Excel 反映失敗 |
+
+丸め単位を変更した場合は、`app_settings` に `time_rounding.mode` として `none`, `5m`, `10m`, `15m`, `20m`, `30m` のいずれかが保存される。
 
 ---
 
@@ -685,6 +689,7 @@ sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT target_date,status,error 
 - 検証用コピーで検証した。
 - 原本へ直接書き込んでいない。
 - 出勤、退勤、日付編集を確認した。
+- 丸め単位選択と SQLite 保存を確認した。
 - 失敗時に Slack と SQLite で確認できた。
 - 秘密情報をファイルへ保存していない。
 - コード修正をした場合はテストを実行した。

@@ -27,6 +27,8 @@
 | 監査ログ | audit log | 打刻・編集・反映結果を追跡するための SQLite 記録 |
 | 手動編集 | manual edit | Slack の編集モーダルから対象日を上書きする操作 |
 | 時刻丸め | time rounding | 打刻時刻を指定分単位へ丸める処理 |
+| 丸め単位 | rounding mode, `time_rounding.mode` | 丸めなし、5分、10分、15分、20分、30分のいずれか |
+| アプリ設定 | app setting, `app_settings` | Slack UI から変更した実行時設定を SQLite に保存する key-value 設定 |
 
 ## 3. UI 用語
 
@@ -36,6 +38,7 @@
 | 出勤ボタン | App Home 上で出勤を記録するボタン |
 | 退勤ボタン | App Home 上で退勤を記録するボタン |
 | 日付選択 | 編集対象日を選ぶ datepicker |
+| 丸め単位選択 | App Home 上で打刻時刻の丸め単位を選ぶ select |
 | 編集モーダル | 対象日の勤務データを上書きする Slack modal |
 | 状態メッセージ | App Home に表示する処理結果 |
 
@@ -98,6 +101,7 @@
 | `openai.primary_model` | 主要分類モデル |
 | `openai.fallback_model` | フォールバック分類モデル |
 | `openai.confidence_threshold` | 確認待ち判定の信頼度しきい値 |
+| `app_settings.time_rounding.mode` | Slack UI で選択した丸め単位 |
 
 ## 8. 環境変数
 
