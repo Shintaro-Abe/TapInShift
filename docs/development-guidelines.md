@@ -141,7 +141,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 - レビューでは、バグ、回帰、セキュリティ、テスト不足、ドキュメント齟齬を優先する。
 - PR を使う場合は、必要に応じて GitHub 上で `@codex review` を依頼する。
 - 秘密情報、実 Excel、SQLite、外部連携、ファイル操作に関わる変更では Codex Security plugin の利用を検討する。
-- 詳細手順は `docs/codex-review-workflow.md` に従う。
+- 詳細手順は `knowledge/codex-review-workflow.md` に従う。
 
 ## 16. セキュリティルール
 

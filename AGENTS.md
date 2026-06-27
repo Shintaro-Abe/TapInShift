@@ -259,4 +259,4 @@ graph TD
 - SQLite スキーマや保存内容を変更した場合は、`tests/test_storage.py` または関連テスト、`scripts/timesheet_tools.py show-db`、ランブックの更新を確認する。
 - Excel 書き込みや日付判定を変更した場合は、`tests/test_excel_writer.py` と実 Excel 検証手順の更新を確認する。
 - `tasklist.md` では、自動テスト済み、実機確認済み、運用判断待ちを混同しない。
-- Codex レビュー方式の詳細は `docs/codex-review-workflow.md` を参照する。
+- Codex レビュー方式の詳細は `knowledge/codex-review-workflow.md` を参照する。
