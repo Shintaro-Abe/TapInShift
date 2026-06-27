@@ -557,9 +557,18 @@ app.quit()</code></pre></div>
 <td><code>交通費320円</code></td>
 <td><code>Y</code> 列に <code>交通費</code>、<code>AB</code> 列に <code>320</code></td>
 </tr>
+<tr>
+<td><code>遅延証明あり 交通費1200円</code></td>
+<td><code>W</code> 列に <code>遅延証明あり</code>、<code>Y</code> 列に <code>交通費</code>、<code>AB</code> 列に <code>1200</code></td>
+</tr>
+<tr>
+<td><code>交通費1200円 遅延証明あり</code></td>
+<td><code>W</code> 列に <code>遅延証明あり</code>、<code>Y</code> 列に <code>交通費</code>、<code>AB</code> 列に <code>1200</code></td>
+</tr>
 </tbody>
 </table>
 <p>OpenAI API key を設定していない場合は、ローカルルールで分類する。</p>
+<p>現時点のローカルルールは、届出キーワードと経費キーワードが同じメモに含まれる場合、<code>W/Y/AB</code> に分離して反映する。</p>
 <h3>9.4.1 後から任意メモを反映する</h3>
 <p>出勤・退勤を先に押した後でも、任意メモだけを後から反映できる。</p>
 <ol>

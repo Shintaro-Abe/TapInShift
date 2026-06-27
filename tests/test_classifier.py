@@ -11,11 +11,25 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(result.amount, 320)
         self.assertFalse(result.needs_confirmation)
 
-    def test_rule_classifier_keeps_amount_out_of_notice_and_expense(self) -> None:
+    def test_rule_classifier_splits_compound_notice_and_expense(self) -> None:
         result = classify_with_rules("遅延証明あり 交通費1,200円")
 
-        self.assertEqual(result.notice, "遅延証明あり 交通費")
-        self.assertEqual(result.expense_item, "遅延証明あり 交通費")
+        self.assertEqual(result.notice, "遅延証明あり")
+        self.assertEqual(result.expense_item, "交通費")
+        self.assertEqual(result.amount, 1200)
+
+    def test_rule_classifier_splits_compound_note_in_reverse_order(self) -> None:
+        result = classify_with_rules("交通費1,200円 遅延証明あり")
+
+        self.assertEqual(result.notice, "遅延証明あり")
+        self.assertEqual(result.expense_item, "交通費")
+        self.assertEqual(result.amount, 1200)
+
+    def test_rule_classifier_splits_compound_note_without_spaces(self) -> None:
+        result = classify_with_rules("遅延証明あり交通費1200円")
+
+        self.assertEqual(result.notice, "遅延証明あり")
+        self.assertEqual(result.expense_item, "交通費")
         self.assertEqual(result.amount, 1200)
 
     def test_rule_classifier_marks_ambiguous_text_for_confirmation(self) -> None:

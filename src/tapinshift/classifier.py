@@ -20,8 +20,9 @@ def classify_with_rules(note: str) -> Classification:
 
     amount = _extract_amount(text)
     content_text = _strip_amount_text(text)
-    expense_item = content_text if amount is not None or any(keyword in text for keyword in EXPENSE_KEYWORDS) else None
-    notice = content_text if any(keyword in text for keyword in NOTICE_KEYWORDS) else None
+    has_expense = amount is not None or any(keyword in text for keyword in EXPENSE_KEYWORDS)
+    has_notice = any(keyword in text for keyword in NOTICE_KEYWORDS)
+    notice, expense_item = _split_notice_and_expense(content_text, has_notice=has_notice, has_expense=has_expense)
     confidence = 0.75 if expense_item or notice else 0.35
 
     return _normalize_classification(
@@ -78,6 +79,7 @@ class OpenAIClassifier:
                         "勤務メモをJSONへ分類してください。"
                         "届出内容、経費内容、金額が不明な場合はnullにしてください。"
                         "金額はamountにだけ入れ、noticeやexpense_itemには金額表現を含めないでください。"
+                        "届出内容と経費内容が同じメモに含まれる場合は、それぞれ別の項目へ分離してください。"
                         "曖昧な場合はneeds_confirmation=trueにしてください。"
                     ),
                 },
@@ -132,8 +134,46 @@ def _strip_amount_text(text: str | None) -> str | None:
     if text is None:
         return None
     stripped = AMOUNT_TEXT_RE.sub("", text)
-    stripped = re.sub(r"\s+", " ", stripped).strip(" 　、,，")
+    stripped = _cleanup_text(stripped)
     return stripped or None
+
+
+def _split_notice_and_expense(
+    text: str | None,
+    *,
+    has_notice: bool,
+    has_expense: bool,
+) -> tuple[str | None, str | None]:
+    if text is None:
+        return None, None
+    if has_notice and has_expense:
+        expense_span = _expense_span(text)
+        if expense_span:
+            start, end = expense_span
+            expense_item = _cleanup_text(text[start:end])
+            notice = _cleanup_text(f"{text[:start]} {text[end:]}")
+            return notice or None, expense_item or None
+    expense_item = text if has_expense else None
+    notice = text if has_notice else None
+    return notice, expense_item
+
+
+def _expense_span(text: str) -> tuple[int, int] | None:
+    starts = [index for keyword in EXPENSE_KEYWORDS if (index := text.find(keyword)) >= 0]
+    if not starts:
+        return None
+    start = min(starts)
+    notice_starts_after_expense = [
+        index for keyword in NOTICE_KEYWORDS if (index := text.find(keyword, start + 1)) >= 0
+    ]
+    end = min(notice_starts_after_expense) if notice_starts_after_expense else len(text)
+    return start, end
+
+
+def _cleanup_text(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", text)
+    cleaned = re.sub(r"\s*[、,，]\s*", " ", cleaned)
+    return cleaned.strip(" 　、,，")
 
 
 def _normalize_classification(classification: Classification) -> Classification:

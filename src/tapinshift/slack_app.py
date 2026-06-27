@@ -180,7 +180,7 @@ def _home_view(
                 "element": {
                     "type": "plain_text_input",
                     "action_id": NOTE_ACTION_ID,
-                    "placeholder": {"type": "plain_text", "text": "例: 交通費320円、遅延証明あり"},
+                    "placeholder": {"type": "plain_text", "text": "例: 遅延証明あり 交通費1200円"},
                 },
                 "label": {"type": "plain_text", "text": "任意メモ"},
             },

@@ -78,7 +78,7 @@ TapInShift では、Slack token、OpenAI API key、Excel password、SQLite、実
 - `show-db` で表示する `app_settings` は allowlist 方式にし、現時点では `time_rounding.mode` のみ表示する。
 - Excel パスワード環境変数が未設定の場合は、Excel を開く前に明確なエラーで停止する。
 - `tests/test_timesheet_tools.py` と `tests/test_excel_writer.py` に失敗系テストを追加した。
-- 全テストは `37` 件 PASS。
+- 全テストは `39` 件 PASS。
 
 ## 5. 参照
 

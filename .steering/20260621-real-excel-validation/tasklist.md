@@ -69,9 +69,14 @@
 - [x] エージェントからパスワード付き勤務表を開けることを確認する。
 - [x] 出勤操作で対象日の `F` 列へ時刻が反映されることを確認する。
 - [x] 退勤操作で対象日の `G` 列へ時刻が反映されることを確認する。
-- [ ] メモ分類の検証モードが OpenAI API かローカルルールかを記録する。
-- [ ] 届出内容の検証用メモ例と期待値を決める。
-- [ ] 経費内容・金額の検証用メモ例と期待値を決める。
+- [x] メモ分類の検証モードが OpenAI API かローカルルールかを記録する。
+  - 現時点の検証基準はローカルルール。OpenAI API を使う場合も金額は `amount` のみに入れ、届出内容と経費内容は分離する。
+- [x] 届出内容の検証用メモ例と期待値を決める。
+  - `遅延証明あり` -> `W=遅延証明あり`
+  - `遅延証明あり 交通費1200円` -> `W=遅延証明あり`, `Y=交通費`, `AB=1200`
+- [x] 経費内容・金額の検証用メモ例と期待値を決める。
+  - `交通費320円` -> `Y=交通費`, `AB=320`
+  - `交通費1200円 遅延証明あり` -> `W=遅延証明あり`, `Y=交通費`, `AB=1200`
 - [x] 任意メモから届出内容が `W` 列へ期待どおり反映されることを確認する。
 - [x] 任意メモから経費内容が `Y` 列、金額が `AB` 列へ期待どおり反映されることを確認する。
 - [x] 空欄の既定項目に `B=1`, `C=1`, `D=0`, `E=0` が入ることを確認する。
@@ -107,12 +112,13 @@
 - [x] 編集モーダル保存時のデータ損失対策: `excel_writer._apply_day_values` を追加し、空欄(None)の項目は既存 Excel セルを上書きしない方針に変更（`service.py` 経由）。`slack_app.py` のモーダル説明文も「空欄は既存値を保持」に更新。
 - [x] 反映時刻の秒・μ秒除去: `excel_writer._excel_time_text` を追加し、`write_punch` の `F/G` 書き込みを `HH:MM` 文字列に統一。
 - [x] 手動編集の金額パース改善: `service._to_int_or_none` でカンマ・`円`・`¥` を除去（`"abc"` 等は引き続き失敗）。
-- [x] 追加テスト: `tests/test_excel_writer.py`（空欄保持・分丸め・日番号/Excelシリアル/曜日付き文字列検索・対象日なし・Excel password 未設定）、`tests/test_service.py`（カンマ・円付き金額、丸め設定、`needs_confirmation`、writer 失敗）、`tests/test_config.py`（丸め方向読み込み）、`tests/test_storage.py`（`app_settings`）、`tests/test_slack_app.py`（丸め単位 select・失敗文言）、`tests/test_timesheet_tools.py`（`show-db` の `app_settings` 互換表示・allowlist 表示）。全37件 PASS。
+- [x] 追加テスト: `tests/test_excel_writer.py`（空欄保持・分丸め・日番号/Excelシリアル/曜日付き文字列検索・対象日なし・Excel password 未設定）、`tests/test_service.py`（カンマ・円付き金額、丸め設定、`needs_confirmation`、writer 失敗）、`tests/test_config.py`（丸め方向読み込み）、`tests/test_storage.py`（`app_settings`）、`tests/test_slack_app.py`（丸め単位 select・失敗文言）、`tests/test_timesheet_tools.py`（`show-db` の `app_settings` 互換表示・allowlist 表示）、`tests/test_classifier.py`（複合メモ分離）。全39件 PASS。
 - [x] `show-db` の `app_settings` 表示を allowlist 化し、現時点では `time_rounding.mode` のみ表示する。
 - [x] Codex レビュー方式を `AGENTS.md` と `docs/codex-review-workflow.md` に整理した。
 - [x] 実勤務表 `L` 列が日番号の場合にも対象日を検索できるよう、`excel_writer._find_row` の日付判定を修正する。
 - [x] 出退勤の時刻丸めを設定できるよう、`time_rounding.clock_in_direction` / `clock_out_direction` を追加。既定は丸めなし、出勤切り上げ・退勤切り捨てを設定可能にした。
 - [x] Slack App Home から丸め単位（なし/5/10/15/20/30分）を選択できるようにし、選択値を SQLite に保存する。
+- [x] 複合メモを `W/Y/AB` へ分離するローカル分類ルールを追加する。
 - [ ] 2回目打刻が `W/Y/AB` を上書きする挙動は運用判断後に対応（現状は許容）。
 
 ## 12. 完了条件

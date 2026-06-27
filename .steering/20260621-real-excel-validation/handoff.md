@@ -87,7 +87,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 結果:
 
 ```text
-Ran 37 tests in 0.355s
+Ran 39 tests in 1.841s
 OK
 ```
 
@@ -157,8 +157,8 @@ python scripts\timesheet_tools.py find-date --date 2026-06-27
    - パスワード未設定: 自動テストで Excel を開く前に停止することを確認済み。
    - Slack 失敗文言: 自動テストで確認済み。
 6. 複合メモの分離精度を運用判断する。
-   - 現状: 金額は `AB` のみに入る。
-   - 例: `遅延証明あり 交通費1200円` の文言を `W=遅延証明あり`, `Y=交通費`, `AB=1200` まで分けるかは未判断。
+   - 完了済み。ローカル分類ルールでは `遅延証明あり 交通費1200円` を `W=遅延証明あり`, `Y=交通費`, `AB=1200` に分離する。
+   - 逆順の `交通費1200円 遅延証明あり` と空白なしの `遅延証明あり交通費1200円` も自動テストで確認済み。
 7. 完了判断後、`.steering/20260621-real-excel-validation/tasklist.md` の §8〜§12 を締める。
 
 ## 次回再開時の最短手順
