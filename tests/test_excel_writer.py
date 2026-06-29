@@ -1,8 +1,10 @@
 from datetime import date, datetime
+import os
 import unittest
 from zoneinfo import ZoneInfo
 
 from tapinshift.config import ExcelColumns, ExcelConfig, ExcelDefaults
+from tapinshift.models import PunchType
 from tapinshift.excel_writer import ExcelTimesheetWriter, _apply_day_values, _excel_time_text, matches_target_date
 
 
@@ -53,14 +55,14 @@ class ExcelWriterHelperTest(unittest.TestCase):
             clock_in=None,
             clock_out="18:30",
             notice=None,
-            expense_item="交通費",
+            expense_item="新宿駅-渋谷駅",
             amount=None,
         )
 
         self.assertEqual(sheet.range("F7").value, "keep clock in")
         self.assertEqual(sheet.range("G7").value, "18:30")
         self.assertEqual(sheet.range("W7").value, "keep notice")
-        self.assertEqual(sheet.range("Y7").value, "交通費")
+        self.assertEqual(sheet.range("Y7").value, "新宿駅-渋谷駅")
         self.assertEqual(sheet.range("AB7").value, 999)
 
     def test_find_row_accepts_day_number_date_cells(self) -> None:
@@ -97,12 +99,52 @@ class ExcelWriterHelperTest(unittest.TestCase):
         self.assertTrue(matches_target_date("27(土)", target, "%Y-%m-%d"))
         self.assertTrue(matches_target_date("6月27日(土)", target, "%Y-%m-%d"))
 
+    def test_find_row_raises_for_missing_target_date(self) -> None:
+        sheet = FakeSheet()
+        sheet.cells = {
+            "L7": FakeCell(25),
+            "L8": FakeCell(26),
+            "L9": FakeCell(27),
+        }
+        writer = ExcelTimesheetWriter(_excel_config())
 
-def _excel_config() -> ExcelConfig:
+        with self.assertRaisesRegex(ValueError, "Target date is outside this timesheet period"):
+            writer._find_row(sheet, date(2026, 6, 28))
+
+    def test_write_punch_requires_excel_password_before_opening_excel(self) -> None:
+        env_name = "TAPINSHIFT_TEST_MISSING_EXCEL_PASSWORD"
+        os.environ.pop(env_name, None)
+        writer = ExcelTimesheetWriter(_excel_config(password_env=env_name))
+
+        with self.assertRaisesRegex(RuntimeError, env_name):
+            writer.write_punch(
+                date(2026, 6, 27),
+                PunchType.CLOCK_IN,
+                datetime(2026, 6, 27, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+                None,
+            )
+
+    def test_update_day_requires_excel_password_before_opening_excel(self) -> None:
+        env_name = "TAPINSHIFT_TEST_MISSING_EXCEL_PASSWORD"
+        os.environ.pop(env_name, None)
+        writer = ExcelTimesheetWriter(_excel_config(password_env=env_name))
+
+        with self.assertRaisesRegex(RuntimeError, env_name):
+            writer.update_day(
+                date(2026, 6, 27),
+                clock_in=None,
+                clock_out=None,
+                notice=None,
+                expense_item=None,
+                amount=None,
+            )
+
+
+def _excel_config(password_env: str = "TAPINSHIFT_EXCEL_PASSWORD") -> ExcelConfig:
     return ExcelConfig(
         path="dummy.xlsx",
         sheet_name="6",
-        password_env="TAPINSHIFT_EXCEL_PASSWORD",
+        password_env=password_env,
         columns=ExcelColumns(
             table="B",
             attendance="C",

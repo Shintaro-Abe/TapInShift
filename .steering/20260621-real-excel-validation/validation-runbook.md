@@ -343,24 +343,12 @@ $env:SLACK_BOT_TOKEN="xoxb-..."
 $env:SLACK_APP_TOKEN="xapp-..."
 ```
 
-OpenAI 分類を使う場合だけ追加する。
-
-```powershell
-$env:OPENAI_API_KEY="sk-..."
-```
-
 ### macOS
 
 ```bash
 export TAPINSHIFT_EXCEL_PASSWORD="Excelのパスワード"
 export SLACK_BOT_TOKEN="xoxb-..."
 export SLACK_APP_TOKEN="xapp-..."
-```
-
-OpenAI 分類を使う場合だけ追加する。
-
-```bash
-export OPENAI_API_KEY="sk-..."
 ```
 
 ---
@@ -416,8 +404,6 @@ tapinshift-agent --config config/config.local.json --check-config
 - Database directory writable
 - slack-bolt import
 - xlwings import
-
-OpenAI を使わない場合、OpenAI API key は `SKIP` でよい。
 
 ---
 
@@ -560,38 +546,44 @@ Slack で作成した App を開く。
 
 ### 9.2 出勤
 
-1. 必要なら任意メモを入力する。
-2. `出勤` を押す。
-3. Slack に成功または失敗の表示が出る。
-4. Excel の対象日の `F` 列に時刻が入ることを確認する。
+1. `出勤` を押す。
+2. Slack に成功または失敗の表示が出る。
+3. Excel の対象日の `F` 列に時刻が入ることを確認する。
 
 期待:
 
 - 時刻は `HH:MM` 相当。
 - 秒は入らない。
 - 既に値がある場合は上書きせず失敗する。
+- 任意メモ欄に文字が残っていても、`W`, `Y`, `AB` は変更しない。
 
 ### 9.3 退勤
 
-1. 必要なら任意メモを入力する。
-2. `退勤` を押す。
-3. Slack に成功または失敗の表示が出る。
-4. Excel の対象日の `G` 列に時刻が入ることを確認する。
+1. `退勤` を押す。
+2. Slack に成功または失敗の表示が出る。
+3. Excel の対象日の `G` 列に時刻が入ることを確認する。
 
-### 9.4 メモ付き打刻
+期待:
+
+- 任意メモ欄に文字が残っていても、`W`, `Y`, `AB` は変更しない。
+
+### 9.4 メモ反映
 
 次の例で確認する。
 
 | 入力例 | 期待する反映 |
 | --- | --- |
-| `遅延証明あり` | `W` 列に反映 |
-| `交通費320円` | `Y` 列に `交通費`、`AB` 列に `320` |
+| `渋谷オフィス` | `W` 列に `渋谷オフィス` |
+| `新宿駅-渋谷駅 320円` | `Y` 列に `新宿駅-渋谷駅`、`AB` 列に `320` |
+| `交通費320円` | 経路がないため確認待ち |
+| `渋谷オフィス 新宿駅-渋谷駅 1200円` | `W` 列に `渋谷オフィス`、`Y` 列に `新宿駅-渋谷駅`、`AB` 列に `1200` |
+| `アレア品川、南平⇔市ヶ谷、1134` | `W` 列に `アレア品川`、`Y` 列に `南平⇔市ヶ谷`、`AB` 列に `1134` |
 
-OpenAI API key を設定していない場合は、ローカルルールで分類する。
+現時点のローカルルールは、金額付きの内容を経費側、金額なしの場所情報を届出側として `W/Y/AB` に分離して反映する。
 
-### 9.4.1 後から任意メモを反映する
+### 9.4.1 任意メモを対象日に反映する
 
-出勤・退勤を先に押した後でも、任意メモだけを後から反映できる。
+出勤・退勤とは別操作で、任意メモだけを対象日に反映できる。
 
 1. `表示・編集する日付` で対象日を選ぶ。
 2. `任意メモ` に内容を入力する。
@@ -626,6 +618,8 @@ SQLite には、成功や失敗の履歴が残る。
 
 ### 推奨: スクリプトで確認する
 
+この方法は Python だけで確認できる。Windows に `sqlite3` コマンドが入っていなくてもよい。
+
 ### Windows PowerShell
 
 ```powershell
@@ -640,7 +634,11 @@ python scripts\timesheet_tools.py show-db --limit 5
 python3 scripts/timesheet_tools.py show-db --limit 5
 ```
 
+`show-db` は `punch_events`、`manual_edits`、表示許可された `app_settings` を表示する。現時点で表示する `app_settings` は `time_rounding.mode` のみ。
+
 ### 手動で確認する場合
+
+`sqlite3` コマンドが使える環境だけで実行する。
 
 ```bash
 sqlite3 data/tapinshift.sqlite3 "SELECT punch_type,status,error FROM punch_events ORDER BY rowid DESC LIMIT 5;"
@@ -665,6 +663,8 @@ sqlite3 "C:\TapInShiftData\tapinshift.sqlite3" "SELECT key,value FROM app_settin
 | `failed` | Excel 反映失敗 |
 
 丸め単位を変更した場合は、`app_settings` に `time_rounding.mode` として `none`, `5m`, `10m`, `15m`, `20m`, `30m` のいずれかが保存される。
+
+Excel password 環境変数が未設定の場合、アプリ本体の Excel writer は Excel を開く前にエラーで停止する。この失敗系は自動テストで確認する。
 
 ---
 

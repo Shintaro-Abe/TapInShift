@@ -33,14 +33,14 @@
     "clock_in_direction": "ceil",
     "clock_out_direction": "floor"
   },
-  "openai": {
-    "primary_model": "gpt-5.4-nano",
-    "fallback_model": "gpt-5.4-mini",
-    "api_key_env": "OPENAI_API_KEY",
-    "confidence_threshold": 0.75
-  },
   "slack": {
     "bot_token_env": "SLACK_BOT_TOKEN",
     "app_token_env": "SLACK_APP_TOKEN"
+  },
+  "cloud_sync": {
+    "endpoint_env": "TAPINSHIFT_CLOUD_ENDPOINT",
+    "token_env": "TAPINSHIFT_SYNC_TOKEN",
+    "poll_interval_seconds": 300,
+    "claim_limit": 10
   }
 }

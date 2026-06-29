@@ -61,18 +61,6 @@ class RoundingConfig:
 
 
 @dataclass(frozen=True)
-class OpenAIConfig:
-    primary_model: str
-    fallback_model: str
-    api_key_env: str
-    confidence_threshold: float
-
-    @property
-    def api_key(self) -> str | None:
-        return os.getenv(self.api_key_env)
-
-
-@dataclass(frozen=True)
 class SlackConfig:
     bot_token_env: str
     app_token_env: str
@@ -87,13 +75,30 @@ class SlackConfig:
 
 
 @dataclass(frozen=True)
+class CloudSyncConfig:
+    endpoint: str | None
+    endpoint_env: str
+    token_env: str
+    poll_interval_seconds: int
+    claim_limit: int
+
+    @property
+    def resolved_endpoint(self) -> str | None:
+        return self.endpoint or os.getenv(self.endpoint_env)
+
+    @property
+    def token(self) -> str | None:
+        return os.getenv(self.token_env)
+
+
+@dataclass(frozen=True)
 class AppConfig:
     timezone: ZoneInfo
     database_path: Path
     excel: ExcelConfig
     time_rounding: RoundingConfig
-    openai: OpenAIConfig
     slack: SlackConfig
+    cloud_sync: CloudSyncConfig
 
 
 def load_config(path: str | Path) -> AppConfig:
@@ -135,16 +140,11 @@ def load_config(path: str | Path) -> AppConfig:
             ),
         ),
         time_rounding=_load_rounding_config(raw.get("time_rounding", {})),
-        openai=OpenAIConfig(
-            primary_model=raw.get("openai", {}).get("primary_model", "gpt-5.4-nano"),
-            fallback_model=raw.get("openai", {}).get("fallback_model", "gpt-5.4-mini"),
-            api_key_env=raw.get("openai", {}).get("api_key_env", "OPENAI_API_KEY"),
-            confidence_threshold=float(raw.get("openai", {}).get("confidence_threshold", 0.75)),
-        ),
         slack=SlackConfig(
             bot_token_env=raw.get("slack", {}).get("bot_token_env", "SLACK_BOT_TOKEN"),
             app_token_env=raw.get("slack", {}).get("app_token_env", "SLACK_APP_TOKEN"),
         ),
+        cloud_sync=_load_cloud_sync_config(raw.get("cloud_sync", {})),
     )
 
 
@@ -161,4 +161,14 @@ def _load_rounding_config(raw: dict) -> RoundingConfig:
         direction=raw.get("direction", "nearest"),
         clock_in_direction=raw.get("clock_in_direction"),
         clock_out_direction=raw.get("clock_out_direction"),
+    )
+
+
+def _load_cloud_sync_config(raw: dict) -> CloudSyncConfig:
+    return CloudSyncConfig(
+        endpoint=raw.get("endpoint"),
+        endpoint_env=raw.get("endpoint_env", "TAPINSHIFT_CLOUD_ENDPOINT"),
+        token_env=raw.get("token_env", "TAPINSHIFT_SYNC_TOKEN"),
+        poll_interval_seconds=int(raw.get("poll_interval_seconds", 300)),
+        claim_limit=int(raw.get("claim_limit", 10)),
     )

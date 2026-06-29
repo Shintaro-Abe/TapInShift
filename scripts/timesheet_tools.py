@@ -5,7 +5,7 @@
   make-copy      原本から検証用コピーを作る（原本は変更しない）
   inspect-dates  Excel の日付列(L)を確認する（実機 Excel + xlwings 必須）
   diagnose-date Excel の対象日検索を詳細診断する
-  show-db        SQLite の打刻・手動編集履歴を表示する
+  show-db        SQLite の打刻・手動編集履歴・アプリ設定を表示する
 
 使い方の例:
   python scripts/timesheet_tools.py make-copy --source "C:/path/原本.xlsx"
@@ -27,6 +27,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = REPO_ROOT / "config" / "config.local.json"
+DISPLAYABLE_APP_SETTING_KEYS = ("time_rounding.mode",)
 
 
 def _load_config(config_path: Path) -> dict:
@@ -402,7 +403,30 @@ def cmd_show_db(args: argparse.Namespace) -> int:
             (limit,),
         ):
             print("  ", r)
+        print("# app_settings")
+        if _table_exists(conn, "app_settings"):
+            placeholders = ", ".join("?" for _ in DISPLAYABLE_APP_SETTING_KEYS)
+            rows = list(
+                conn.execute(
+                    f"SELECT key, value FROM app_settings WHERE key IN ({placeholders}) ORDER BY key",
+                    DISPLAYABLE_APP_SETTING_KEYS,
+                )
+            )
+            if not rows:
+                print("   (no displayable app_settings)")
+            for r in rows:
+                print("  ", r)
+        else:
+            print("   (app_settings table does not exist yet)")
     return 0
+
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    ).fetchone()
+    return row is not None
 
 
 def main() -> int:
@@ -432,7 +456,7 @@ def main() -> int:
     p_diag.add_argument("--date", required=True, help="確認する日付（例: 2026-06-27）")
     p_diag.set_defaults(func=cmd_diagnose_date)
 
-    p_db = sub.add_parser("show-db", parents=[common], help="SQLite 履歴を表示する")
+    p_db = sub.add_parser("show-db", parents=[common], help="SQLite 履歴と設定を表示する")
     p_db.add_argument("--limit", type=int, default=5, help="表示件数（既定: 5）")
     p_db.set_defaults(func=cmd_show_db)
 

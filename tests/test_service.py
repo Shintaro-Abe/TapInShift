@@ -10,10 +10,10 @@ from zoneinfo import ZoneInfo
 
 from tapinshift.config import (
     AppConfig,
+    CloudSyncConfig,
     ExcelColumns,
     ExcelConfig,
     ExcelDefaults,
-    OpenAIConfig,
     RoundingConfig,
     SlackConfig,
 )
@@ -25,18 +25,23 @@ from tapinshift.storage import EventStore
 class FakeClassifier:
     def __init__(self, classification: Classification) -> None:
         self.classification = classification
+        self.calls: list[str] = []
 
     def classify(self, note: str) -> Classification:
+        self.calls.append(note)
         return self.classification
 
 
 class FakeWriter:
-    def __init__(self) -> None:
+    def __init__(self, write_error: Exception | None = None) -> None:
         self.write_calls = []
         self.update_calls = []
+        self.write_error = write_error
 
     def write_punch(self, **kwargs):
         self.write_calls.append(kwargs)
+        if self.write_error:
+            raise self.write_error
         return type("Result", (), {"reflected_at": kwargs["reflected_time"], "row": 7})()
 
     def update_day(self, **kwargs):
@@ -50,10 +55,11 @@ class PunchServiceTest(unittest.TestCase):
             store = EventStore(Path(tmp) / "tapinshift.sqlite3")
             store.initialize()
             writer = FakeWriter()
+            classifier = FakeClassifier(Classification(None, "新宿駅-渋谷駅", 320, 0.9, False))
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification(None, "交通費", 320, 0.9, False)),
+                classifier=classifier,
                 writer=writer,
             )
 
@@ -61,24 +67,28 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="交通費320円",
                 tapped_at=datetime(2026, 6, 21, 9, 8, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
             self.assertEqual(event.status, ReflectionStatus.REFLECTED)
             self.assertEqual(len(writer.write_calls), 1)
             self.assertEqual(writer.write_calls[0]["target_date"], date(2026, 6, 21))
-            self.assertEqual(store.get_day_events("2026-06-21")[0].classification.amount, 320)
+            self.assertIsNone(writer.write_calls[0]["classification"])
+            self.assertEqual(classifier.calls, [])
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.note, "")
+            self.assertIsNone(stored_event.classification)
 
-    def test_handle_punch_confirmation_does_not_write_excel(self) -> None:
+    def test_handle_punch_does_not_classify_notes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = EventStore(Path(tmp) / "tapinshift.sqlite3")
             store.initialize()
             writer = FakeWriter()
+            classifier = FakeClassifier(Classification(None, None, None, 0.2, True))
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification(None, None, None, 0.2, True)),
+                classifier=classifier,
                 writer=writer,
             )
 
@@ -86,12 +96,42 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-1",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_OUT,
-                note="あとで確認",
                 tapped_at=datetime(2026, 6, 21, 18, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
-            self.assertEqual(event.status, ReflectionStatus.NEEDS_CONFIRMATION)
-            self.assertEqual(writer.write_calls, [])
+            self.assertEqual(event.status, ReflectionStatus.REFLECTED)
+            self.assertEqual(len(writer.write_calls), 1)
+            self.assertIsNone(writer.write_calls[0]["classification"])
+            self.assertEqual(classifier.calls, [])
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.status, ReflectionStatus.REFLECTED)
+            self.assertIsNone(stored_event.classification)
+            self.assertIsNone(stored_event.error)
+
+    def test_handle_punch_records_writer_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EventStore(Path(tmp) / "tapinshift.sqlite3")
+            store.initialize()
+            writer = FakeWriter(write_error=ValueError("Cell already has a value: F13"))
+            service = PunchService(
+                config=_config(Path(tmp)),
+                store=store,
+                classifier=FakeClassifier(Classification(None, None, None, 1.0, False)),
+                writer=writer,
+            )
+
+            event = service.handle_punch(
+                slack_event_id="evt-1",
+                slack_user_id="U123",
+                punch_type=PunchType.CLOCK_IN,
+                tapped_at=datetime(2026, 6, 21, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+            )
+
+            self.assertEqual(event.status, ReflectionStatus.FAILED)
+            self.assertEqual(event.error, "Cell already has a value: F13")
+            stored_event = store.get_day_events("2026-06-21")[0]
+            self.assertEqual(stored_event.status, ReflectionStatus.FAILED)
+            self.assertEqual(stored_event.error, "Cell already has a value: F13")
 
     def test_handle_punch_uses_per_punch_rounding_direction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -117,14 +157,12 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-in",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 9, 1, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
             service.handle_punch(
                 slack_event_id="evt-out",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_OUT,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 18, 14, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
@@ -157,7 +195,6 @@ class PunchServiceTest(unittest.TestCase):
                 slack_event_id="evt-in",
                 slack_user_id="U123",
                 punch_type=PunchType.CLOCK_IN,
-                note="",
                 tapped_at=datetime(2026, 6, 21, 9, 1, tzinfo=ZoneInfo("Asia/Tokyo")),
             )
 
@@ -222,7 +259,7 @@ class PunchServiceTest(unittest.TestCase):
             status = service.update_day(
                 slack_user_id="U123",
                 target_date="2026-06-21",
-                values={"clock_in": "", "clock_out": "", "notice": "", "expense_item": "交通費", "amount": "1,200円"},
+                values={"clock_in": "", "clock_out": "", "notice": "", "expense_item": "新宿駅-渋谷駅", "amount": "1,200円"},
             )
 
             self.assertEqual(status, ReflectionStatus.REFLECTED)
@@ -241,28 +278,28 @@ class PunchServiceTest(unittest.TestCase):
             service = PunchService(
                 config=_config(Path(tmp)),
                 store=store,
-                classifier=FakeClassifier(Classification("遅延証明あり", "交通費", 320, 0.9, False)),
+                classifier=FakeClassifier(Classification("渋谷オフィス", "新宿駅-渋谷駅", 320, 0.9, False)),
                 writer=writer,
             )
 
             status, error = service.apply_note_to_day(
                 slack_user_id="U123",
                 target_date="2026-06-21",
-                note="遅延証明あり 交通費320円",
+                note="渋谷オフィス 新宿駅-渋谷駅 320円",
             )
 
             self.assertEqual(status, ReflectionStatus.REFLECTED)
             self.assertIsNone(error)
             self.assertEqual(writer.update_calls[0]["clock_in"], None)
             self.assertEqual(writer.update_calls[0]["clock_out"], None)
-            self.assertEqual(writer.update_calls[0]["notice"], "遅延証明あり")
-            self.assertEqual(writer.update_calls[0]["expense_item"], "交通費")
+            self.assertEqual(writer.update_calls[0]["notice"], "渋谷オフィス")
+            self.assertEqual(writer.update_calls[0]["expense_item"], "新宿駅-渋谷駅")
             self.assertEqual(writer.update_calls[0]["amount"], 320)
             with closing(sqlite3.connect(db_path)) as conn:
                 row = conn.execute("SELECT status, notice, expense_item, amount FROM manual_edits").fetchone()
             self.assertEqual(row[0], ReflectionStatus.REFLECTED.value)
-            self.assertEqual(row[1], "遅延証明あり")
-            self.assertEqual(row[2], "交通費")
+            self.assertEqual(row[1], "渋谷オフィス")
+            self.assertEqual(row[2], "新宿駅-渋谷駅")
             self.assertEqual(row[3], 320)
 
     def test_apply_note_to_day_records_empty_note_as_failed(self) -> None:
@@ -311,13 +348,14 @@ def _config(base: Path, rounding: RoundingConfig | None = None) -> AppConfig:
             defaults=ExcelDefaults(table=1, attendance=1, late=0, early=0),
         ),
         time_rounding=rounding or RoundingConfig(mode="none", direction="nearest"),
-        openai=OpenAIConfig(
-            primary_model="gpt-5.4-nano",
-            fallback_model="gpt-5.4-mini",
-            api_key_env="OPENAI_API_KEY",
-            confidence_threshold=0.75,
-        ),
         slack=SlackConfig(bot_token_env="SLACK_BOT_TOKEN", app_token_env="SLACK_APP_TOKEN"),
+        cloud_sync=CloudSyncConfig(
+            endpoint="https://example.lambda-url.aws/",
+            endpoint_env="TAPINSHIFT_CLOUD_ENDPOINT",
+            token_env="TAPINSHIFT_SYNC_TOKEN",
+            poll_interval_seconds=300,
+            claim_limit=10,
+        ),
     )
 
 

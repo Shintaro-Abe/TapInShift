@@ -72,12 +72,13 @@
 - 打刻イベントは `slack_event_id` を主キーにする。
 - 手動編集は追記履歴として保存する。
 - App Home で変更したアプリ設定は key-value の `app_settings` に保存する。
+- 検証コマンドで `app_settings` を表示する場合は、表示してよいキーだけを allowlist で出力する。
 - エラー文字列は復旧判断に必要な範囲で保存する。
 
-## 10. OpenAI 分類ルール
+## 10. 任意メモ分類ルール
 
-- 空メモでは OpenAI API を呼ばない。
-- API キー未設定時はローカルルール分類へフォールバックする。
+- 空メモでは分類処理を行わない。
+- 分類はローカルルールで行う。
 - 分類が曖昧な場合は Excel へ反映せず確認待ちにする。
 - 分類結果は `Classification` に正規化してから扱う。
 
@@ -134,10 +135,19 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 - 図表は関連する Markdown 内に直接書く。
 - コードとドキュメントの不一致を残さない。
 
-## 15. セキュリティルール
+## 15. Codex レビュー規約
+
+- コミット前に未コミット差分レビューを行う。
+- レビューでは、バグ、回帰、セキュリティ、テスト不足、ドキュメント齟齬を優先する。
+- PR を使う場合は、必要に応じて GitHub 上で `@codex review` を依頼する。
+- 秘密情報、実 Excel、SQLite、外部連携、ファイル操作に関わる変更では Codex Security plugin の利用を検討する。
+- 詳細手順は `knowledge/codex-review-workflow.md` に従う。
+
+## 16. セキュリティルール
 
 - 秘密情報をログ、テスト、ドキュメント、コミットに含めない。
-- Slack token、OpenAI API key、Excel password は環境変数で管理する。
+- Slack token、Excel password は環境変数で管理する。
+- Excel password 環境変数が未設定の場合は、Excel を開く前に失敗させる。
 - ユーザー入力は Excel 書き込み前に正規化する。
 - 金額は整数に変換できる場合のみ反映する。
 - 失敗時のエラーに秘密情報が含まれないよう注意する。

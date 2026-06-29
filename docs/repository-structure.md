@@ -16,6 +16,7 @@ TapInShift/
   config/
   data/
   docs/
+  knowledge/
   research/
   scripts/
   src/
@@ -50,7 +51,15 @@ TapInShift/
 
 設計図やダイアグラムは関連する Markdown ファイル内に Mermaid または ASCII で記載する。
 
-## 5. `.steering/`
+## 5. `knowledge/`
+
+実装横断の運用ナレッジ、レビュー手順、調査から得た再利用可能な手順を配置する。アプリケーションの基本設計を定義する `docs/` とは分ける。
+
+| ファイル | 内容 |
+| --- | --- |
+| `knowledge/codex-review-workflow.md` | Codex レビュー方式 |
+
+## 6. `.steering/`
 
 作業単位の要求、設計、タスクを配置する。
 
@@ -65,7 +74,7 @@ TapInShift/
 
 新しい機能追加や修正では、新しい日付付きディレクトリを作る。
 
-## 6. `src/tapinshift/`
+## 7. `src/tapinshift/`
 
 アプリケーションコードを配置する。
 
@@ -77,12 +86,13 @@ TapInShift/
 | `models.py` | ドメインモデル、Enum |
 | `slack_app.py` | Slack Bolt App、App Home、アクション、モーダル |
 | `service.py` | 打刻・編集のアプリケーションサービス |
-| `classifier.py` | OpenAI 分類、ローカルルール分類 |
+| `classifier.py` | ローカルルールによる任意メモ分類 |
 | `excel_writer.py` | xlwings による Excel 書き込み |
 | `storage.py` | SQLite 初期化、保存、取得 |
 | `time_rounding.py` | 時刻丸め |
+| `cloud/` | Lambda HTTP受付、DynamoDBキュー、Windows Agent同期処理 |
 
-## 7. `tests/`
+## 8. `tests/`
 
 単体テストを配置する。
 
@@ -94,10 +104,12 @@ TapInShift/
 | `test_time_rounding.py` | 時刻丸め |
 | `test_service.py` | サービス層の接続 |
 | `test_slack_app.py` | Slack App Home view 構造 |
+| `test_cloud_*.py` | クラウド受付、DynamoDB変換、同期API、Windows Agent同期 |
+| `test_dynamodb_store.py` | DynamoDBストアの条件付きclaimと設定保存 |
 
 テストファイル名は `test_*.py` とする。
 
-## 8. `config/`
+## 9. `config/`
 
 設定ファイルを配置する。
 
@@ -108,7 +120,7 @@ TapInShift/
 
 秘密情報は設定ファイルに直接書かず、環境変数名だけを書く。
 
-## 9. `data/`
+## 10. `data/`
 
 ローカルデータを配置する。Git 管理対象外。
 
@@ -119,19 +131,19 @@ TapInShift/
 
 勤務表や SQLite には個人情報や勤務情報が含まれるため、コミットしない。
 
-## 10. `research/`
+## 11. `research/`
 
 調査メモを配置する。
 
 永続設計ではなく、技術選定や外部サービス調査の履歴として扱う。
 
-## 11. `scripts/`
+## 12. `scripts/`
 
 補助スクリプトを配置する。
 
 現在はローカルセットアップ、設定確認、実機検証補助、ランブック HTML 生成、スキル導入に関するスクリプトを置く。
 
-## 12. 生成物・除外対象
+## 13. 生成物・除外対象
 
 次は Git 管理対象外とする。
 
@@ -145,7 +157,7 @@ TapInShift/
 - `*.egg-info/`
 - 認証情報やローカルセッション情報
 
-## 13. 配置ルール
+## 14. 配置ルール
 
 - アプリケーション本体は `src/tapinshift/` に置く。
 - テストは `tests/` に置き、対象モジュール名と対応させる。

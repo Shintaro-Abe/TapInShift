@@ -1,16 +1,19 @@
 # TapInShift
 
-SlackのApp Homeから出勤・退勤を記録し、自宅PCローカルのExcel勤務表へ反映するPythonローカルエージェントです。
+SlackのApp Homeから出勤・退勤を記録し、ローカルExcel勤務表へ反映する勤怠入力ツールです。
+
+外出中などWindows端末が停止している場合は、AWS Lambda Function URL + DynamoDB のクラウドキューでSlack操作を受け付け、Windows Agent起動後に未同期イベントをExcelへ反映します。
 
 ## 採用構成
 
-- Slack App Home + Socket Mode
-- Pythonローカルエージェント
+- Slack App Home + HTTP Request URL
+- AWS Lambda Function URL + DynamoDB
+- Windows同期エージェント
 - SQLite監査ログ
-- OpenAI APIによる任意メモ分類
+- ローカルルールによる任意メモ分類
 - xlwingsによるローカルExcel書き込み
 
-v1は自宅PCが起動中のみ処理します。クラウドキューや公開APIは使いません。
+ExcelファイルとExcelパスワードはクラウドに置きません。クラウド側には打刻、メモ、編集、同期状態に必要な最小限のデータだけを保存します。
 
 ## セットアップ
 
@@ -27,12 +30,47 @@ cp config/config.example.json config/config.local.json
 
 ```bash
 export SLACK_BOT_TOKEN='xoxb-...'
-export SLACK_APP_TOKEN='xapp-...'
-export OPENAI_API_KEY='sk-...'
 export TAPINSHIFT_EXCEL_PASSWORD='...'
+export TAPINSHIFT_CLOUD_ENDPOINT='https://<lambda-function-url>'
+export TAPINSHIFT_SYNC_TOKEN='...'
 ```
 
 秘密情報はリポジトリに保存しません。`.env.local` を使う場合もGit管理対象外です。
+
+Windows PowerShellで `.env.local` を読み込む場合:
+
+```powershell
+.\scripts\load-env-local.ps1
+$env:TAPINSHIFT_EXCEL_PASSWORD="Excelのパスワード"
+```
+
+`--sync-now` や `--poll-cloud` で `HTTP Error 401: Unauthorized` が出る場合は、Windows側の `TAPINSHIFT_SYNC_TOKEN` とAWS側の同期tokenが一致していません。`.env.local` を読み込み直してから再実行します。
+
+Windowsログオン時にクラウド同期Agentを自動起動する場合は、`.env.local` に `TAPINSHIFT_EXCEL_PASSWORD` も保存したうえで、次を実行します。
+
+```powershell
+.\scripts\register-cloud-agent-task.bat
+```
+
+`アクセスが拒否されました` で失敗する場合は、管理者としてPowerShellを開き直して再実行するか、管理者権限不要のStartupフォルダ登録を使います。
+
+```powershell
+.\scripts\register-cloud-agent-startup.bat
+```
+
+タスクスケジューラ方式で登録後すぐ起動する場合:
+
+```powershell
+schtasks /Run /TN "TapInShift Cloud Agent"
+```
+
+Startupフォルダ方式で登録後すぐ起動する場合:
+
+```powershell
+.\scripts\start-cloud-agent.bat
+```
+
+自動起動される処理は `scripts/start-cloud-agent.bat` です。
 
 ## 実行
 
@@ -40,22 +78,32 @@ export TAPINSHIFT_EXCEL_PASSWORD='...'
 tapinshift-agent --config config/config.local.json
 ```
 
+クラウドキューから未同期イベントを1回だけ同期する場合:
+
+```bash
+tapinshift-agent --config config/config.local.json --sync-now
+```
+
+起動中に5分ごとに同期する場合:
+
+```bash
+tapinshift-agent --config config/config.local.json --poll-cloud
+```
+
 ## Slack Appの前提
 
-- Socket Modeを有効化する
+- Socket Modeは無効化する
 - App Homeを有効化する
 - Interactivityを有効化する
 - `app_home_opened` イベントを購読する
+- Event Subscriptions Request URLを `<Lambda Function URL>/slack/events` にする
+- Interactivity Request URLを `<Lambda Function URL>/slack/actions` にする
 - Bot token scopesはSlack App設定画面で最小権限から開始し、App Home表示・Modal表示に必要なものだけ追加する
 
-## OpenAI分類
+## 任意メモ分類
 
-既定モデル:
-
-- 通常: `gpt-5.4-nano`
-- フォールバック: `gpt-5.4-mini`
-
-任意メモが空欄の場合、OpenAI APIは呼びません。APIキーが未設定の場合は、正規表現・キーワードベースの簡易分類へフォールバックします。
+任意メモはローカルルールで分類します。届出内容は拠点・建物名・駅名などの場所情報、経費内容は金額に対応する内容として扱います。交通費の場合、経費内容には経路のみを入れます。
+出勤・退勤ボタンでは任意メモ欄を送信せず、メモは `メモ反映` ボタンで対象日に反映します。
 
 ## 編集
 
@@ -63,17 +111,20 @@ App Homeの日付選択から編集Modalを開きます。保存すると、設�
 
 ## 時刻丸め
 
-v1既定は `none` です。タップ時刻をそのまま記録します。
+時刻丸めは実装済みです。Slack App Homeから丸め単位を選択すると、以降の出勤・退勤に適用されます。
 
-将来対応用として、設定には次の値を想定しています。
+既定は `none` です。`none` の場合はタップ時刻をそのまま記録します。
 
+選択できる丸め単位は次の通りです。
+
+- `none`
 - `5m`
 - `10m`
 - `15m`
 - `20m`
 - `30m`
 
-丸め方向は `nearest`、`floor`、`ceil` を想定しています。
+丸め方向は設定ファイルで制御します。既定では出勤は切り上げ、退勤は切り捨てです。
 
 ## テスト
 

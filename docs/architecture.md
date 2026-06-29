@@ -2,19 +2,21 @@
 
 ## 1. 技術概要
 
-TapInShift は Python で実装されたローカル常駐エージェントである。Slack Socket Mode で Slack App と接続し、ユーザー操作を受けて SQLite へ監査ログを保存し、xlwings 経由でローカル Excel 勤務表へ反映する。
+TapInShift は Slack App Home、AWS Lambda Function URL、DynamoDB、Windows同期エージェントで構成する勤怠入力ツールである。Slack操作はクラウドキューに保存し、Windows Agent が起動後に xlwings 経由でローカル Excel 勤務表へ反映する。
 
-v1 は自宅 PC またはローカル端末で動作する単一ユーザー向け構成とする。
+ExcelファイルとExcel password はローカル端末に閉じ、クラウドには最小限のイベントデータと同期状態だけを置く。
 
 ## 2. テクノロジースタック
 
 | 領域 | 採用技術 |
 | --- | --- |
 | 言語 | Python 3.11 以上 |
-| Slack 連携 | slack-bolt, Socket Mode |
+| Slack 連携 | Slack HTTP Request URL, Slack Web API |
+| クラウド受付 | AWS Lambda Function URL |
+| クラウド保存 | DynamoDB |
 | 設定 | JSON, python-dotenv, 環境変数 |
 | 監査ログ | SQLite |
-| AI 分類 | OpenAI Responses API |
+| 任意メモ分類 | ローカルルール |
 | Excel 操作 | xlwings |
 | テスト | unittest |
 | パッケージ管理 | pyproject.toml, setuptools |
@@ -23,12 +25,13 @@ v1 は自宅 PC またはローカル端末で動作する単一ユーザー向�
 
 ```mermaid
 graph TD
+    SLACK[Slack App Home] --> LAMBDA[Lambda Function URL]
+    LAMBDA --> DDB[(DynamoDB)]
     ENV[環境変数/.env.local] --> APP[tapinshift-agent]
     CFG[config.local.json] --> APP
-    APP --> SLACK[Slack Socket Mode]
+    APP --> LAMBDA
     APP --> DB[(SQLite)]
     APP --> EXCEL[Excelアプリ/xlwings]
-    APP --> OPENAI[OpenAI API]
 ```
 
 ## 4. 実行環境
@@ -42,7 +45,8 @@ graph TD
 ### 4.2 実運用環境
 
 - Python 3.11 以上。
-- Slack App の Socket Mode が利用できること。
+- Slack App の HTTP Request URL と Interactivity が利用できること。
+- AWS Lambda Function URL と DynamoDB が利用できること。
 - Excel アプリがインストールされていること。
 - 勤務表 Excel ファイルへローカルファイルとしてアクセスできること。
 - パスワード付き Excel を xlwings で開けること。
@@ -65,10 +69,10 @@ graph TD
 | `excel.date_format` | 日付照合フォーマット |
 | `excel.defaults` | 空セルに入れる既定値 |
 | `time_rounding` | 時刻丸め設定 |
-| `openai` | OpenAI モデルとしきい値 |
 | `slack` | Slack token の環境変数名 |
+| `cloud_sync` | クラウド同期エンドポイント、token、ポーリング間隔 |
 
-`time_rounding.mode` は起動時の初期値である。Slack App Home で丸め単位を変更した場合、SQLite の `app_settings` に保存された値が以降の打刻で優先される。
+`time_rounding.mode` は起動時の初期値である。クラウド運用では Slack App Home で変更した丸め単位を DynamoDB に保存し、以降のクラウド受付打刻で優先する。ローカル Bolt 運用では SQLite の `app_settings` に保存された値を優先する。
 
 ## 6. 秘密情報
 
@@ -77,8 +81,9 @@ graph TD
 | 環境変数 | 用途 |
 | --- | --- |
 | `SLACK_BOT_TOKEN` | Slack Bot Token |
-| `SLACK_APP_TOKEN` | Slack App Token |
-| `OPENAI_API_KEY` | OpenAI API Key |
+| `SLACK_SIGNING_SECRET` | Slack 署名検証 |
+| `TAPINSHIFT_SYNC_TOKEN` | Windows Agent 同期 API token |
+| `TAPINSHIFT_CLOUD_ENDPOINT` | Lambda Function URL |
 | `TAPINSHIFT_EXCEL_PASSWORD` | Excel 開封パスワード |
 
 `.env.local` を使う場合も Git 管理対象外にする。
@@ -88,7 +93,9 @@ graph TD
 ```mermaid
 graph LR
     app[app.py] --> config[config.py]
-    app --> slack[slack_app.py]
+    app --> cloud[cloud package]
+    cloud --> lambda[lambda_app.py]
+    cloud --> sync[worker.py]
     app --> service[service.py]
     service --> classifier[classifier.py]
     service --> writer[excel_writer.py]
@@ -102,18 +109,18 @@ graph LR
 ### 境界ルール
 
 - Slack 固有の payload 処理は `slack_app.py` に閉じる。
+- クラウドHTTP受付と同期処理は `tapinshift.cloud` に閉じる。
 - 業務判断は `service.py` に集約する。
 - Excel 操作は `excel_writer.py` に閉じる。
 - SQLite 操作は `storage.py` に閉じる。
-- OpenAI 呼び出しとローカル分類は `classifier.py` に閉じる。
+- 任意メモ分類は `classifier.py` に閉じる。
 
 ## 8. 技術的制約
 
-- v1 はローカル PC 起動中のみ処理する。
-- Slack 操作をクラウドキューへ保存し、後から再処理する仕組みは持たない。
+- Slack受付はクラウドで行うが、Excel反映はWindows Agent起動中のみ行う。
 - xlwings は Excel アプリに依存するため、CI や devcontainer では実 Excel 書き込みを保証しない。
 - Excel ファイルをユーザーが開いている場合、保存失敗や競合が発生する可能性がある。
-- OpenAI API が未設定または利用できない場合、分類精度はローカルルール相当に下がる。
+- 任意メモ分類はローカルルールに依存するため、自由文の分類精度には限界がある。
 
 ## 9. パフォーマンス要件
 
@@ -126,7 +133,9 @@ graph LR
 
 - Excel 反映に失敗しても打刻イベントは SQLite に保存する。
 - 失敗内容は `error` として保存する。
-- Slack UI で変更した丸め単位は SQLite に保存し、再起動後も維持する。
+- Slack UI で変更した丸め単位は DynamoDB に保存し、以降のクラウド受付打刻へ適用する。
+- Windows Agent は `queued` イベントを条件付き更新で `claimed` にしてから処理し、成功時は `reflected`、失敗時は `failed` をクラウドへ返す。
+- `reflected` / `failed` への更新は、claim時に保存した `claim_token` が一致する場合だけ受け付ける。
 - 手動編集で Excel を上書きして復旧する。
 - v1 では自動リトライは実装しない。
 
@@ -136,6 +145,8 @@ graph LR
 - `config.local.json`、`.env.local`、`data/` は Git 管理対象外にする。
 - Slack ユーザー入力は文字列として受け取り、Excel 書き込み前に型変換する。
 - 金額は整数に変換できる場合のみ Excel へ渡す。
+- `scripts/timesheet_tools.py show-db` は `app_settings` の全キーを表示せず、表示許可した運用設定のみ出力する。
+- Excel password 環境変数が未設定の場合、Excel writer は Excel を開く前に停止する。
 
 ## 12. 品質確認
 
@@ -152,4 +163,4 @@ graph LR
 .venv/bin/tapinshift-agent --config config/config.local.json
 ```
 
-実機確認では Slack App Home 表示、丸め単位選択、出勤、退勤、日付編集、Excel 反映、失敗時ログ保存を確認する。
+実機確認では Slack App Home 表示、丸め単位選択、出勤、退勤、メモ反映、日付編集、Excel 反映、失敗時ログ保存、Windows再起動後の常駐同期を確認する。

@@ -1,6 +1,6 @@
 display_information:
-  name: TapInShift Local
-  description: Local attendance punch app for TapInShift.
+  name: TapInShift
+  description: Slack attendance punch app for TapInShift cloud queue sync.
 features:
   app_home:
     home_tab_enabled: true
@@ -15,10 +15,12 @@ oauth_config:
       - "chat:write"
 settings:
   event_subscriptions:
+    request_url: "https://<lambda-function-url>/slack/events"
     bot_events:
       - app_home_opened
   interactivity:
     is_enabled: true
-  socket_mode_enabled: true
+    request_url: "https://<lambda-function-url>/slack/actions"
+  socket_mode_enabled: false
   org_deploy_enabled: false
   token_rotation_enabled: false
