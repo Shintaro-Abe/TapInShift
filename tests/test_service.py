@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from tapinshift.config import (
     AppConfig,
+    CloudSyncConfig,
     ExcelColumns,
     ExcelConfig,
     ExcelDefaults,
@@ -348,6 +349,13 @@ def _config(base: Path, rounding: RoundingConfig | None = None) -> AppConfig:
         ),
         time_rounding=rounding or RoundingConfig(mode="none", direction="nearest"),
         slack=SlackConfig(bot_token_env="SLACK_BOT_TOKEN", app_token_env="SLACK_APP_TOKEN"),
+        cloud_sync=CloudSyncConfig(
+            endpoint="https://example.lambda-url.aws/",
+            endpoint_env="TAPINSHIFT_CLOUD_ENDPOINT",
+            token_env="TAPINSHIFT_SYNC_TOKEN",
+            poll_interval_seconds=300,
+            claim_limit=10,
+        ),
     )
 
 

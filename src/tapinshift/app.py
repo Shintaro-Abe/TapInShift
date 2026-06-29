@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import argparse
 import os
+import socket
+import time
 from collections.abc import Callable
+from datetime import datetime
 
 from dotenv import load_dotenv
 
 from .classifier import RuleBasedClassifier
+from .cloud.client import CloudSyncHttpClient
+from .cloud.worker import CloudExcelSynchronizer
 from .config import load_config
 from .excel_writer import ExcelTimesheetWriter
 from .service import PunchService
@@ -22,6 +27,8 @@ def main() -> None:
         action="store_true",
         help="Validate local configuration and required runtime dependencies without starting Slack.",
     )
+    parser.add_argument("--sync-now", action="store_true", help="Claim cloud events once and reflect them to Excel.")
+    parser.add_argument("--poll-cloud", action="store_true", help="Continuously poll cloud events and reflect them to Excel.")
     args = parser.parse_args()
 
     load_dotenv(".env.local")
@@ -32,6 +39,17 @@ def main() -> None:
 
     store = EventStore(config.database_path)
     store.initialize()
+
+    if args.sync_now or args.poll_cloud:
+        synchronizer = _build_cloud_synchronizer(config, store)
+        if args.sync_now:
+            count = synchronizer.sync_once(now=datetime.now(config.timezone))
+            print(f"INFO: Cloud sync reflected attempt count: {count}")
+            return
+        while True:
+            count = synchronizer.sync_once(now=datetime.now(config.timezone))
+            print(f"INFO: Cloud sync reflected attempt count: {count}")
+            time.sleep(config.cloud_sync.poll_interval_seconds)
 
     bot_token = config.slack.bot_token
     app_token = config.slack.app_token
@@ -61,6 +79,8 @@ def _check_config(config) -> int:  # type: ignore[no-untyped-def]
         ("Excel file exists", lambda: config.excel.path.exists(), True),
         ("Excel password env", lambda: bool(config.excel.password), True),
         ("Database directory writable", lambda: _is_writable_dir(config.database_path.parent), True),
+        ("Cloud sync endpoint", lambda: bool(config.cloud_sync.resolved_endpoint), False),
+        ("Cloud sync token env", lambda: bool(config.cloud_sync.token), False),
         ("slack-bolt import", lambda: _can_import("slack_bolt"), True),
         ("xlwings import", lambda: _can_import("xlwings"), True),
     ]
@@ -74,7 +94,24 @@ def _check_config(config) -> int:  # type: ignore[no-untyped-def]
     print(f"INFO: Excel path: {config.excel.path}")
     print(f"INFO: Excel sheet: {config.excel.sheet_name}")
     print(f"INFO: Database path: {config.database_path}")
+    print(f"INFO: Cloud sync endpoint: {config.cloud_sync.resolved_endpoint or '(not configured)'}")
     return 1 if failed_required else 0
+
+
+def _build_cloud_synchronizer(config, store: EventStore) -> CloudExcelSynchronizer:  # type: ignore[no-untyped-def]
+    endpoint = config.cloud_sync.resolved_endpoint
+    token = config.cloud_sync.token
+    if not endpoint:
+        raise SystemExit(f"{config.cloud_sync.endpoint_env} or cloud_sync.endpoint must be set for cloud sync.")
+    if not token:
+        raise SystemExit(f"{config.cloud_sync.token_env} must be set for cloud sync.")
+    return CloudExcelSynchronizer(
+        client=CloudSyncHttpClient(endpoint=endpoint, token=token),
+        writer=ExcelTimesheetWriter(config.excel),
+        store=store,
+        claim_token=socket.gethostname(),
+        claim_limit=config.cloud_sync.claim_limit,
+    )
 
 
 def _can_import(module: str) -> bool:

@@ -4,19 +4,19 @@
 
 この文書は TapInShift の機能構成、データ構造、画面、処理フローを定義する。
 
-TapInShift は Slack App Home を入力画面とし、Python ローカルエージェントが SQLite に監査ログを保存しながら、ローカル Excel 勤務表へ出勤・退勤・届出・経費情報を反映する。
+TapInShift は Slack App Home を入力画面とし、AWS Lambda Function URL が Slack 操作を DynamoDB に保存し、Windows Agent が未同期イベントをローカル Excel 勤務表へ反映する。
 
 ## 2. システム構成
 
 ```mermaid
 graph TD
     U[ユーザー] --> S[Slack App Home]
-    S --> B[Slack Bolt Socket Mode]
-    B --> A[tapinshift-agent]
-    A --> C[PunchService]
-    C --> CL[RuleBasedClassifier]
-    C --> DB[(SQLite)]
-    C --> XW[ExcelTimesheetWriter]
+    S --> L[Lambda Function URL]
+    L --> CL[RuleBasedClassifier]
+    L --> DDB[(DynamoDB)]
+    A[tapinshift-agent] --> L
+    A --> DB[(SQLite)]
+    A --> XW[ExcelTimesheetWriter]
     XW --> XL[ローカルExcel勤務表]
 ```
 
@@ -24,13 +24,14 @@ graph TD
 
 | 機能 | 概要 | 主な実装 |
 | --- | --- | --- |
-| App Home 表示 | Slack App Home に入力 UI を表示する | `slack_app.py` |
-| 出勤打刻 | 出勤ボタンで時刻を記録し Excel へ反映する | `slack_app.py`, `service.py`, `excel_writer.py` |
-| 退勤打刻 | 退勤ボタンで時刻を記録し Excel へ反映する | `slack_app.py`, `service.py`, `excel_writer.py` |
+| App Home 表示 | Slack App Home に入力 UI を表示する | `cloud/lambda_app.py`, `slack_app.py` |
+| 出勤打刻 | 出勤ボタンで時刻を記録し同期キューへ保存する | `cloud/lambda_app.py`, `cloud/business.py` |
+| 退勤打刻 | 退勤ボタンで時刻を記録し同期キューへ保存する | `cloud/lambda_app.py`, `cloud/business.py` |
 | 任意メモ分類 | メモから届出・経費・金額を分類する | `classifier.py` |
-| 日別編集 | 日付選択から編集モーダルを開き、対象日を上書きする | `slack_app.py`, `service.py` |
-| 監査ログ | 打刻と手動編集の履歴を SQLite に保存する | `storage.py` |
-| 丸め単位変更 | App Home で選択した丸め単位を保存し、以降の打刻へ適用する | `slack_app.py`, `service.py`, `storage.py` |
+| 日別編集 | 日付選択から編集モーダルを開き、対象日編集を同期キューへ保存する | `cloud/lambda_app.py`, `cloud/business.py` |
+| クラウド同期 | 未同期イベントを claim して Excel へ反映する | `cloud/worker.py`, `cloud/client.py` |
+| 監査ログ | Excel 反映試行を SQLite に保存する | `storage.py` |
+| 丸め単位変更 | App Home で選択した丸め単位を保存し、以降の打刻へ適用する | `cloud/lambda_app.py`, `cloud/business.py` |
 | 設定診断 | 起動前に環境変数、Excel、依存関係を確認する | `app.py` |
 
 ## 4. ユースケース
@@ -54,23 +55,23 @@ flowchart LR
 sequenceDiagram
     participant User as ユーザー
     participant Slack as Slack App Home
-    participant Agent as tapinshift-agent
-    participant Service as PunchService
-    participant Store as SQLite
+    participant Cloud as Lambda
+    participant Queue as DynamoDB
+    participant Agent as Windows Agent
     participant Excel as Excel
 
     User->>Slack: 出勤/退勤ボタン押下
-    Slack->>Agent: action payload
-    Agent-->>Slack: ack
-    Agent->>Service: handle_punch
-    Service->>Excel: write_punch
+    Slack->>Cloud: action payload
+    Cloud-->>Slack: ack
+    Cloud->>Queue: queued保存
+    Agent->>Cloud: claim
+    Cloud->>Queue: claimed更新
+    Agent->>Excel: write_punch
     alt Excel 反映成功
-        Excel-->>Service: ExcelWriteResult
-        Service->>Store: upsert_event(reflected)
+        Agent->>Cloud: reflected報告
     else Excel 反映失敗
-        Service->>Store: upsert_event(failed)
+        Agent->>Cloud: failed報告
     end
-    Agent->>Slack: App Home 状態更新
 ```
 
 ### 5.2 丸め単位変更フロー
@@ -79,16 +80,14 @@ sequenceDiagram
 sequenceDiagram
     participant User as ユーザー
     participant Slack as Slack App Home
-    participant Agent as tapinshift-agent
-    participant Service as PunchService
-    participant Store as SQLite
+    participant Cloud as Lambda
+    participant Store as DynamoDB
 
     User->>Slack: 丸め単位を選択
-    Slack->>Agent: static_select payload
-    Agent-->>Slack: ack
-    Agent->>Service: update_rounding_mode(mode)
-    Service->>Store: set_setting(time_rounding.mode)
-    Agent->>Slack: App Home 状態更新
+    Slack->>Cloud: static_select payload
+    Cloud-->>Slack: ack
+    Cloud->>Store: SETTING#time_rounding.mode保存
+    Cloud->>Slack: App Home 状態更新
 ```
 
 ### 5.3 日別編集フロー
@@ -123,12 +122,13 @@ sequenceDiagram
 - `.env.local` を読み込む。
 - JSON 設定を `AppConfig` に変換する。
 - `--check-config` で起動前診断を行う。
-- `SocketModeHandler` で Slack と接続する。
+- `--sync-now` でクラウド未同期イベントを1回同期する。
+- `--poll-cloud` でクラウド未同期イベントを定期同期する。
 
 ### 6.2 `config.py`
 
 - JSON 設定ファイルを読み込む。
-- Excel、Slack、時刻丸め、SQLite の設定を dataclass で保持する。
+- Excel、Slack、時刻丸め、SQLite、クラウド同期の設定を dataclass で保持する。
 - `time_rounding.mode` は設定ファイル上の初期値として扱い、Slack UI で変更された丸め単位は SQLite の `app_settings` が優先される。
 - 秘密情報は環境変数名だけを設定ファイルに持ち、値は実行時に環境変数から取得する。
 
@@ -167,6 +167,15 @@ sequenceDiagram
 - 打刻イベントは `slack_event_id` を主キーとして upsert する。
 - 手動編集は追記履歴として保存する。
 - UI で変更したアプリ設定は `app_settings` に key-value で保存する。
+
+### 6.8 `tapinshift.cloud`
+
+- `lambda_app.py` は Slack HTTP Request URL、Slack署名検証、同期APIを処理する。
+- `business.py` はクラウド受付イベントの作成、丸め、分類、二重打刻検出を担当する。
+- `events.py` は DynamoDB 単一テーブルのイベント表現を担当する。
+- `dynamodb_store.py` は DynamoDB 永続化を担当する。
+- `worker.py` は Windows Agent 側で claim 済みイベントを Excel へ反映する。
+- `client.py` は Windows Agent から Lambda Function URL へ同期APIを呼び出す。
 
 ## 7. データモデル
 
@@ -286,14 +295,18 @@ erDiagram
 
 ## 10. API 設計
 
-v1 は公開 HTTP API を持たない。外部連携は Slack Socket Mode のみである。
+クラウドキュー同期では Lambda Function URL が HTTP API を持つ。
 
-将来バックエンドを追加する場合は、次の境界を API 化候補とする。
+Slack 向け:
 
-- 打刻登録
-- 日別イベント取得
-- 日別勤務データ更新
-- 未反映イベント再処理
+- `POST /slack/events`: `app_home_opened` と URL verification を処理する。
+- `POST /slack/actions`: ボタン、select、datepicker、modal submission を処理する。
+
+Windows Agent 向け:
+
+- `POST /sync/claim`: `queued` または期限切れ `claimed` イベントを `claimed` にして返す。
+- `POST /sync/reflected`: Excel 反映成功を記録する。
+- `POST /sync/failed`: Excel 反映失敗と retryable を記録する。
 
 ## 11. エラー処理
 

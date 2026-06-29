@@ -2,16 +2,18 @@
 
 ## 1. 技術概要
 
-TapInShift は Python で実装されたローカル常駐エージェントである。Slack Socket Mode で Slack App と接続し、ユーザー操作を受けて SQLite へ監査ログを保存し、xlwings 経由でローカル Excel 勤務表へ反映する。
+TapInShift は Slack App Home、AWS Lambda Function URL、DynamoDB、Windows同期エージェントで構成する勤怠入力ツールである。Slack操作はクラウドキューに保存し、Windows Agent が起動後に xlwings 経由でローカル Excel 勤務表へ反映する。
 
-v1 は自宅 PC またはローカル端末で動作する単一ユーザー向け構成とする。
+ExcelファイルとExcel password はローカル端末に閉じ、クラウドには最小限のイベントデータと同期状態だけを置く。
 
 ## 2. テクノロジースタック
 
 | 領域 | 採用技術 |
 | --- | --- |
 | 言語 | Python 3.11 以上 |
-| Slack 連携 | slack-bolt, Socket Mode |
+| Slack 連携 | Slack HTTP Request URL, Slack Web API |
+| クラウド受付 | AWS Lambda Function URL |
+| クラウド保存 | DynamoDB |
 | 設定 | JSON, python-dotenv, 環境変数 |
 | 監査ログ | SQLite |
 | 任意メモ分類 | ローカルルール |
@@ -23,9 +25,11 @@ v1 は自宅 PC またはローカル端末で動作する単一ユーザー向�
 
 ```mermaid
 graph TD
+    SLACK[Slack App Home] --> LAMBDA[Lambda Function URL]
+    LAMBDA --> DDB[(DynamoDB)]
     ENV[環境変数/.env.local] --> APP[tapinshift-agent]
     CFG[config.local.json] --> APP
-    APP --> SLACK[Slack Socket Mode]
+    APP --> LAMBDA
     APP --> DB[(SQLite)]
     APP --> EXCEL[Excelアプリ/xlwings]
 ```
@@ -41,7 +45,8 @@ graph TD
 ### 4.2 実運用環境
 
 - Python 3.11 以上。
-- Slack App の Socket Mode が利用できること。
+- Slack App の HTTP Request URL と Interactivity が利用できること。
+- AWS Lambda Function URL と DynamoDB が利用できること。
 - Excel アプリがインストールされていること。
 - 勤務表 Excel ファイルへローカルファイルとしてアクセスできること。
 - パスワード付き Excel を xlwings で開けること。
@@ -65,6 +70,7 @@ graph TD
 | `excel.defaults` | 空セルに入れる既定値 |
 | `time_rounding` | 時刻丸め設定 |
 | `slack` | Slack token の環境変数名 |
+| `cloud_sync` | クラウド同期エンドポイント、token、ポーリング間隔 |
 
 `time_rounding.mode` は起動時の初期値である。Slack App Home で丸め単位を変更した場合、SQLite の `app_settings` に保存された値が以降の打刻で優先される。
 
@@ -75,7 +81,9 @@ graph TD
 | 環境変数 | 用途 |
 | --- | --- |
 | `SLACK_BOT_TOKEN` | Slack Bot Token |
-| `SLACK_APP_TOKEN` | Slack App Token |
+| `SLACK_SIGNING_SECRET` | Slack 署名検証 |
+| `TAPINSHIFT_SYNC_TOKEN` | Windows Agent 同期 API token |
+| `TAPINSHIFT_CLOUD_ENDPOINT` | Lambda Function URL |
 | `TAPINSHIFT_EXCEL_PASSWORD` | Excel 開封パスワード |
 
 `.env.local` を使う場合も Git 管理対象外にする。
@@ -85,7 +93,9 @@ graph TD
 ```mermaid
 graph LR
     app[app.py] --> config[config.py]
-    app --> slack[slack_app.py]
+    app --> cloud[cloud package]
+    cloud --> lambda[lambda_app.py]
+    cloud --> sync[worker.py]
     app --> service[service.py]
     service --> classifier[classifier.py]
     service --> writer[excel_writer.py]
@@ -99,6 +109,7 @@ graph LR
 ### 境界ルール
 
 - Slack 固有の payload 処理は `slack_app.py` に閉じる。
+- クラウドHTTP受付と同期処理は `tapinshift.cloud` に閉じる。
 - 業務判断は `service.py` に集約する。
 - Excel 操作は `excel_writer.py` に閉じる。
 - SQLite 操作は `storage.py` に閉じる。
@@ -106,8 +117,7 @@ graph LR
 
 ## 8. 技術的制約
 
-- v1 はローカル PC 起動中のみ処理する。
-- Slack 操作をクラウドキューへ保存し、後から再処理する仕組みは持たない。
+- Slack受付はクラウドで行うが、Excel反映はWindows Agent起動中のみ行う。
 - xlwings は Excel アプリに依存するため、CI や devcontainer では実 Excel 書き込みを保証しない。
 - Excel ファイルをユーザーが開いている場合、保存失敗や競合が発生する可能性がある。
 - 任意メモ分類はローカルルールに依存するため、自由文の分類精度には限界がある。
@@ -123,7 +133,8 @@ graph LR
 
 - Excel 反映に失敗しても打刻イベントは SQLite に保存する。
 - 失敗内容は `error` として保存する。
-- Slack UI で変更した丸め単位は SQLite に保存し、再起動後も維持する。
+- Slack UI で変更した丸め単位は DynamoDB に保存し、以降のクラウド受付打刻へ適用する。
+- Windows Agent は `queued` イベントを `claimed` にしてから処理し、成功時は `reflected`、失敗時は `failed` をクラウドへ返す。
 - 手動編集で Excel を上書きして復旧する。
 - v1 では自動リトライは実装しない。
 

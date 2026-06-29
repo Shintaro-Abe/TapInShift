@@ -5,9 +5,11 @@
 .venv-*/
 config/config.local.json
 data/
+build/
 __pycache__/
 *.py[cod]
 *.egg-info/
+.tools/
 
 # Codex local state if CODEX_HOME is ever pointed into the repository
 .codex/auth.json

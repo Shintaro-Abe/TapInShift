@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: TapInShift cloud queue sync using Lambda Function URL and DynamoDB.
+
+Parameters:
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+  TapInShiftSyncToken:
+    Type: String
+    NoEcho: true
+
+Resources:
+  TapInShiftEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: TapInShiftEvents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  TapInShiftLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: TapInShiftDynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TapInShiftEventsTable.Arn
+                  - !Sub "${TapInShiftEventsTable.Arn}/index/GSI1"
+
+  TapInShiftCloudFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: tapinshift-cloud
+      Runtime: python3.12
+      Handler: tapinshift.cloud.lambda_app.lambda_handler
+      Role: !GetAtt TapInShiftLambdaRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 500, "body": "Deploy packaged TapInShift code artifact."}
+      Environment:
+        Variables:
+          TAPINSHIFT_EVENTS_TABLE: !Ref TapInShiftEventsTable
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          TAPINSHIFT_SYNC_TOKEN: !Ref TapInShiftSyncToken
+
+  TapInShiftFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref TapInShiftCloudFunction
+      AuthType: NONE
+
+  TapInShiftFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TapInShiftCloudFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  TapInShiftFunctionInvokeViaUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TapInShiftCloudFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  FunctionUrl:
+    Description: Slack Request URL and Windows Agent cloud endpoint.
+    Value: !GetAtt TapInShiftFunctionUrl.FunctionUrl
+  EventsTableName:
+    Description: DynamoDB table name.
+    Value: !Ref TapInShiftEventsTable

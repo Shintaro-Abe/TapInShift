@@ -25,10 +25,15 @@
 | 経費内容 | expense item, `expense_item` | 金額に対応する内容。交通費の場合は経路のみ |
 | 金額 | amount | 経費の金額。整数で扱い、届出内容・経費内容には含めない |
 | 監査ログ | audit log | 打刻・編集・反映結果を追跡するための SQLite 記録 |
+| クラウドキュー | cloud queue | Slack 受付イベントを Windows Agent 起動後に処理するための DynamoDB 保存領域 |
+| 同期 | sync | クラウドキューのイベントをローカル Excel へ反映し、結果をクラウドへ返す処理 |
+| claim | claim | 未同期イベントを特定の Windows Agent が処理対象として確保すること |
+| 未同期 | queued | Slackで受け付け済みだが、Windows Agentがまだ処理していない状態 |
+| 処理中 | claimed | Windows Agentがclaim済みで、Excel反映中または結果報告前の状態 |
 | 手動編集 | manual edit | Slack の編集モーダルから対象日を上書きする操作 |
 | 時刻丸め | time rounding | 打刻時刻を指定分単位へ丸める処理 |
 | 丸め単位 | rounding mode, `time_rounding.mode` | 丸めなし、5分、10分、15分、20分、30分のいずれか |
-| アプリ設定 | app setting, `app_settings` | Slack UI から変更した実行時設定を SQLite に保存する key-value 設定 |
+| アプリ設定 | app setting | Slack UI から変更した実行時設定 |
 
 ## 3. UI 用語
 
@@ -47,6 +52,9 @@
 | 用語 | 定義 |
 | --- | --- |
 | Socket Mode | Slack App が WebSocket 経由でイベントを受け取る方式 |
+| HTTP Request URL | Slack App がHTTP POSTでイベントや操作を送る方式 |
+| Lambda Function URL | AWS Lambda をHTTPS URLとして公開する機能 |
+| DynamoDB | AWS のマネージドNoSQLデータベース |
 | Slack Bolt | Slack App を Python で実装するためのフレームワーク |
 | Block Kit | Slack UI を構成する JSON ベースの仕組み |
 | xlwings | Python から Excel アプリを操作するライブラリ |
@@ -63,6 +71,10 @@
 | `AppConfig` | dataclass | アプリケーション全体設定 |
 | `ExcelConfig` | dataclass | Excel 書き込み設定 |
 | `SlackConfig` | dataclass | Slack token 設定 |
+| `CloudSyncConfig` | dataclass | クラウド同期設定 |
+| `CloudEvent` | dataclass | クラウドキュー上の同期イベント |
+| `CloudSyncService` | class | claim と同期結果更新 |
+| `CloudExcelSynchronizer` | class | claim 済みイベントを Excel へ反映する同期ワーカー |
 | `PunchService` | class | 打刻・編集の業務サービス |
 | `EventStore` | class | SQLite 永続化 |
 | `RuleBasedClassifier` | class | ローカルルールによる任意メモ分類 |
@@ -73,6 +85,8 @@
 | 値 | 日本語 | 意味 |
 | --- | --- | --- |
 | `pending` | 保留 | 初期状態または未反映 |
+| `queued` | 未同期 | クラウドで受付済み、Windows Agent未処理 |
+| `claimed` | 処理中 | Windows Agentが処理対象として確保済み |
 | `reflected` | 反映済み | Excel 書き込み成功 |
 | `failed` | 反映失敗 | Excel 書き込みまたは入力変換失敗 |
 | `needs_confirmation` | 確認待ち | 分類結果が曖昧で自動反映しない |
@@ -96,13 +110,19 @@
 | `time_rounding.clock_in_direction` | 出勤時刻の丸め方向 |
 | `time_rounding.clock_out_direction` | 退勤時刻の丸め方向 |
 | `app_settings.time_rounding.mode` | Slack UI で選択した丸め単位 |
+| `cloud_sync.endpoint` | Lambda Function URL |
+| `cloud_sync.endpoint_env` | Lambda Function URL を読む環境変数名 |
+| `cloud_sync.token_env` | 同期 API token を読む環境変数名 |
+| `cloud_sync.poll_interval_seconds` | Windows Agent のポーリング間隔 |
 
 ## 8. 環境変数
 
 | 環境変数 | 意味 |
 | --- | --- |
 | `SLACK_BOT_TOKEN` | Slack Bot Token |
-| `SLACK_APP_TOKEN` | Slack App Token |
+| `SLACK_SIGNING_SECRET` | Slack署名検証用secret |
+| `TAPINSHIFT_CLOUD_ENDPOINT` | Lambda Function URL |
+| `TAPINSHIFT_SYNC_TOKEN` | Windows Agent同期API token |
 | `TAPINSHIFT_EXCEL_PASSWORD` | Excel 開封パスワード |
 
 ## 9. 表記ルール

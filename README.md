@@ -1,16 +1,19 @@
 # TapInShift
 
-SlackのApp Homeから出勤・退勤を記録し、自宅PCローカルのExcel勤務表へ反映するPythonローカルエージェントです。
+SlackのApp Homeから出勤・退勤を記録し、ローカルExcel勤務表へ反映する勤怠入力ツールです。
+
+外出中などWindows端末が停止している場合は、AWS Lambda Function URL + DynamoDB のクラウドキューでSlack操作を受け付け、Windows Agent起動後に未同期イベントをExcelへ反映します。
 
 ## 採用構成
 
-- Slack App Home + Socket Mode
-- Pythonローカルエージェント
+- Slack App Home + HTTP Request URL
+- AWS Lambda Function URL + DynamoDB
+- Windows同期エージェント
 - SQLite監査ログ
 - ローカルルールによる任意メモ分類
 - xlwingsによるローカルExcel書き込み
 
-v1は自宅PCが起動中のみ処理します。クラウドキューや公開APIは使いません。
+ExcelファイルとExcelパスワードはクラウドに置きません。クラウド側には打刻、メモ、編集、同期状態に必要な最小限のデータだけを保存します。
 
 ## セットアップ
 
@@ -27,11 +30,41 @@ cp config/config.example.json config/config.local.json
 
 ```bash
 export SLACK_BOT_TOKEN='xoxb-...'
-export SLACK_APP_TOKEN='xapp-...'
 export TAPINSHIFT_EXCEL_PASSWORD='...'
+export TAPINSHIFT_CLOUD_ENDPOINT='https://<lambda-function-url>'
+export TAPINSHIFT_SYNC_TOKEN='...'
 ```
 
 秘密情報はリポジトリに保存しません。`.env.local` を使う場合もGit管理対象外です。
+
+Windows PowerShellで `.env.local` を読み込む場合:
+
+```powershell
+.\scripts\load-env-local.ps1
+$env:TAPINSHIFT_EXCEL_PASSWORD="Excelのパスワード"
+```
+
+`--sync-now` や `--poll-cloud` で `HTTP Error 401: Unauthorized` が出る場合は、Windows側の `TAPINSHIFT_SYNC_TOKEN` とAWS側の同期tokenが一致していません。`.env.local` を読み込み直してから再実行します。
+
+Windowsログオン時にクラウド同期Agentを自動起動する場合は、`.env.local` に `TAPINSHIFT_EXCEL_PASSWORD` も保存したうえで、次を実行します。
+
+```powershell
+.\scripts\register-cloud-agent-task.bat
+```
+
+`アクセスが拒否されました` で失敗する場合は、管理者としてPowerShellを開き直して再実行するか、管理者権限不要のStartupフォルダ登録を使います。
+
+```powershell
+.\scripts\register-cloud-agent-startup.bat
+```
+
+登録後すぐ起動する場合:
+
+```powershell
+schtasks /Run /TN "TapInShift Cloud Agent"
+```
+
+自動起動される処理は `scripts/start-cloud-agent.bat` です。
 
 ## 実行
 
@@ -39,12 +72,26 @@ export TAPINSHIFT_EXCEL_PASSWORD='...'
 tapinshift-agent --config config/config.local.json
 ```
 
+クラウドキューから未同期イベントを1回だけ同期する場合:
+
+```bash
+tapinshift-agent --config config/config.local.json --sync-now
+```
+
+起動中に5分ごとに同期する場合:
+
+```bash
+tapinshift-agent --config config/config.local.json --poll-cloud
+```
+
 ## Slack Appの前提
 
-- Socket Modeを有効化する
+- Socket Modeは無効化する
 - App Homeを有効化する
 - Interactivityを有効化する
 - `app_home_opened` イベントを購読する
+- Event Subscriptions Request URLを `<Lambda Function URL>/slack/events` にする
+- Interactivity Request URLを `<Lambda Function URL>/slack/actions` にする
 - Bot token scopesはSlack App設定画面で最小権限から開始し、App Home表示・Modal表示に必要なものだけ追加する
 
 ## 任意メモ分類
@@ -58,9 +105,9 @@ App Homeの日付選択から編集Modalを開きます。保存すると、設�
 
 ## 時刻丸め
 
-v1既定は `none` です。タップ時刻をそのまま記録します。
+既定は `none` です。タップ時刻をそのまま記録します。
 
-将来対応用として、設定には次の値を想定しています。
+Slack App Homeから次の丸め単位を選択できます。
 
 - `5m`
 - `10m`
