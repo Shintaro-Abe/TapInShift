@@ -58,10 +58,16 @@ Windowsログオン時にクラウド同期Agentを自動起動する場合は�
 .\scripts\register-cloud-agent-startup.bat
 ```
 
-登録後すぐ起動する場合:
+タスクスケジューラ方式で登録後すぐ起動する場合:
 
 ```powershell
 schtasks /Run /TN "TapInShift Cloud Agent"
+```
+
+Startupフォルダ方式で登録後すぐ起動する場合:
+
+```powershell
+.\scripts\start-cloud-agent.bat
 ```
 
 自動起動される処理は `scripts/start-cloud-agent.bat` です。

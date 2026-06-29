@@ -268,8 +268,8 @@ def _handle_sync_request(
     if request.method != "POST":
         return _json_response(405, {"error": "method_not_allowed"})
 
-    payload = json.loads(request.body or "{}")
     try:
+        payload = json.loads(request.body or "{}")
         if request.path == "/sync/claim":
             now = _parse_datetime(payload["now"])
             events = sync_service.claim(
@@ -279,17 +279,22 @@ def _handle_sync_request(
             )
             return _json_response(200, {"events": [event_to_item(event) for event in events]})
         if request.path == "/sync/reflected":
-            event = sync_service.mark_reflected(event_id=str(payload["event_id"]), now=_parse_datetime(payload["now"]))
+            event = sync_service.mark_reflected(
+                event_id=str(payload["event_id"]),
+                claim_token=str(payload["claim_token"]),
+                now=_parse_datetime(payload["now"]),
+            )
             return _json_response(200, {"event": event_to_item(event)})
         if request.path == "/sync/failed":
             event = sync_service.mark_failed(
                 event_id=str(payload["event_id"]),
+                claim_token=str(payload["claim_token"]),
                 error=str(payload.get("error") or ""),
                 retryable=bool(payload.get("retryable", False)),
                 now=_parse_datetime(payload["now"]),
             )
             return _json_response(200, {"event": event_to_item(event)})
-    except (KeyError, ValueError) as exc:
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
         return _json_response(400, {"error": str(exc)})
 
     return _json_response(404, {"error": "not_found"})

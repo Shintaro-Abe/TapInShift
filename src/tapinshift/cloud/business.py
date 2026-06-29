@@ -61,6 +61,19 @@ class CloudEventFactory:
         event_id: str | None = None,
     ) -> CloudEvent:
         text = raw_note.strip()
+        if not text:
+            return CloudEvent(
+                event_id=event_id or _event_id("note"),
+                slack_user_id=slack_user_id,
+                event_type=CloudEventType.NOTE_REFLECTION,
+                target_date=target_date,
+                sync_status=SyncStatus.FAILED,
+                created_at=accepted_at,
+                updated_at=accepted_at,
+                raw_note=text,
+                retryable=False,
+                error="No note was provided.",
+            )
         classification = self.classifier.classify(text)
         return CloudEvent(
             event_id=event_id or _event_id("note"),
@@ -83,19 +96,27 @@ class CloudEventFactory:
         values: dict[str, str | int | None],
         event_id: str | None = None,
     ) -> CloudEvent:
+        normalized_amount = None
+        error = None
+        try:
+            normalized_amount = _amount_or_none(values.get("amount"))
+        except ValueError as exc:
+            error = str(exc)
         return CloudEvent(
             event_id=event_id or _event_id("edit"),
             slack_user_id=slack_user_id,
             event_type=CloudEventType.DAY_EDIT,
             target_date=target_date,
-            sync_status=SyncStatus.QUEUED,
+            sync_status=SyncStatus.FAILED if error else SyncStatus.QUEUED,
             created_at=accepted_at,
             updated_at=accepted_at,
             clock_in=_blank_to_none(values.get("clock_in")),
             clock_out=_blank_to_none(values.get("clock_out")),
             notice=_blank_to_none(values.get("notice")),
             expense_item=_blank_to_none(values.get("expense_item")),
-            amount=_amount_or_none(values.get("amount")),
+            amount=normalized_amount,
+            retryable=False if error else None,
+            error=error,
         )
 
 

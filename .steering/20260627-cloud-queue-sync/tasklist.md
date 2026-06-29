@@ -167,3 +167,6 @@
 - [x] メモ反映イベントがクラウド経由で `reflected` になり、届出内容・経費内容・金額が保存されることを確認した。
 - [x] 日別編集イベント2件がクラウド経由で `reflected` になり、出勤・退勤・届出内容・経費内容・金額が保存されることを確認した。
 - [x] 日別編集モーダル送信後のSlack応答を空の200 JSONに修正し、予期せぬエラー表示を抑止するようLambdaへデプロイした。
+- [x] Codexレビューで指摘された非atomic claim、claim_token未検証、空メモ反映、金額不正、Startup手順ズレを修正した。
+- [x] `PYTHONPATH=src python3 -m unittest discover -s tests` を実行し、91件 PASS を確認した。
+- [x] レビュー指摘対応後のLambdaをデプロイし、`/health` が `{"ok": true}` を返すことを確認した。

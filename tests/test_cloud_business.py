@@ -81,6 +81,24 @@ class CloudEventFactoryTest(unittest.TestCase):
         self.assertEqual(event.classification.amount, 1134)  # type: ignore[union-attr]
         self.assertFalse(event.classification.needs_confirmation)  # type: ignore[union-attr]
 
+    def test_empty_note_reflection_event_is_failed(self) -> None:
+        factory = CloudEventFactory(
+            rounding=RoundingConfig(mode="none", direction="nearest"),
+            classifier=RuleBasedClassifier(),
+        )
+
+        event = factory.note_reflection_event(
+            slack_user_id="U123",
+            target_date=date(2026, 6, 27),
+            raw_note="  ",
+            accepted_at=datetime(2026, 6, 27, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+            event_id="evt-note",
+        )
+
+        self.assertEqual(event.sync_status, SyncStatus.FAILED)
+        self.assertEqual(event.error, "No note was provided.")
+        self.assertFalse(event.retryable)
+
     def test_day_edit_event_keeps_blank_fields_as_none(self) -> None:
         factory = CloudEventFactory(
             rounding=RoundingConfig(mode="none", direction="nearest"),
@@ -107,6 +125,31 @@ class CloudEventFactoryTest(unittest.TestCase):
         self.assertEqual(event.notice, "アレア品川")
         self.assertIsNone(event.expense_item)
         self.assertEqual(event.amount, 1134)
+
+    def test_day_edit_event_with_invalid_amount_is_failed(self) -> None:
+        factory = CloudEventFactory(
+            rounding=RoundingConfig(mode="none", direction="nearest"),
+            classifier=RuleBasedClassifier(),
+        )
+
+        event = factory.day_edit_event(
+            slack_user_id="U123",
+            target_date=date(2026, 6, 27),
+            accepted_at=datetime(2026, 6, 27, 10, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+            values={
+                "clock_in": "09:00",
+                "clock_out": "18:00",
+                "notice": "アレア品川",
+                "expense_item": "南平⇔市ヶ谷",
+                "amount": "abc",
+            },
+            event_id="evt-edit",
+        )
+
+        self.assertEqual(event.sync_status, SyncStatus.FAILED)
+        self.assertIsNone(event.amount)
+        self.assertFalse(event.retryable)
+        self.assertIn("invalid literal", event.error or "")
 
     def test_rounding_setting_item_rejects_unsupported_mode(self) -> None:
         with self.assertRaises(ValueError):

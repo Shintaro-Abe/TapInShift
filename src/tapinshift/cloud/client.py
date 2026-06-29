@@ -23,14 +23,15 @@ class CloudSyncHttpClient:
         )
         return [item_to_event(item) for item in body.get("events", [])]
 
-    def mark_reflected(self, *, event_id: str, now: datetime) -> None:
-        self._post("/sync/reflected", {"event_id": event_id, "now": now.isoformat()})
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> None:
+        self._post("/sync/reflected", {"event_id": event_id, "claim_token": claim_token, "now": now.isoformat()})
 
-    def mark_failed(self, *, event_id: str, error: str, retryable: bool, now: datetime) -> None:
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> None:
         self._post(
             "/sync/failed",
             {
                 "event_id": event_id,
+                "claim_token": claim_token,
                 "error": error,
                 "retryable": retryable,
                 "now": now.isoformat(),

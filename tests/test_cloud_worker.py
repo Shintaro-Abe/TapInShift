@@ -36,7 +36,7 @@ class CloudExcelSynchronizerTest(unittest.TestCase):
 
             self.assertEqual(count, 1)
             self.assertEqual(writer.write_calls[0]["reflected_time"], reflected_at)
-            self.assertEqual(client.reflected, ["evt-1"])
+            self.assertEqual(client.reflected, [{"event_id": "evt-1", "claim_token": "agent-1"}])
             self.assertEqual(store.get_day_events("2026-06-27")[0].status, ReflectionStatus.REFLECTED)
 
     def test_sync_once_reflects_note_event_to_manual_edit_log(self) -> None:
@@ -62,7 +62,7 @@ class CloudExcelSynchronizerTest(unittest.TestCase):
 
             self.assertEqual(writer.update_calls[0]["notice"], "アレア品川")
             self.assertEqual(writer.update_calls[0]["amount"], 1134)
-            self.assertEqual(client.reflected, ["evt-note"])
+            self.assertEqual(client.reflected, [{"event_id": "evt-note", "claim_token": "agent-1"}])
 
     def test_sync_once_does_not_reflect_needs_confirmation_note(self) -> None:
         event = _event(
@@ -86,7 +86,7 @@ class CloudExcelSynchronizerTest(unittest.TestCase):
             sync.sync_once(now=datetime(2026, 6, 27, 9, 0, tzinfo=timezone.utc))
 
             self.assertEqual(writer.update_calls, [])
-            self.assertEqual(client.reflected, ["evt-note"])
+            self.assertEqual(client.reflected, [{"event_id": "evt-note", "claim_token": "agent-1"}])
 
     def test_sync_once_marks_failed_when_writer_fails(self) -> None:
         event = _event(
@@ -125,11 +125,11 @@ class FakeCloudClient:
     def claim(self, *, claim_token: str, now: datetime, limit: int) -> list[CloudEvent]:  # noqa: ARG002
         return self.events[:limit]
 
-    def mark_reflected(self, *, event_id: str, now: datetime) -> None:  # noqa: ARG002
-        self.reflected.append(event_id)
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> None:  # noqa: ARG002
+        self.reflected.append({"event_id": event_id, "claim_token": claim_token})
 
-    def mark_failed(self, *, event_id: str, error: str, retryable: bool, now: datetime) -> None:  # noqa: ARG002
-        self.failed.append({"event_id": event_id, "error": error, "retryable": retryable})
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> None:  # noqa: ARG002
+        self.failed.append({"event_id": event_id, "claim_token": claim_token, "error": error, "retryable": retryable})
 
 
 class FakeWriter:

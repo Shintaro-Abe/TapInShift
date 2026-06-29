@@ -61,10 +61,14 @@ class CloudSyncServiceTest(unittest.TestCase):
         now = datetime(2026, 6, 27, 9, 0, tzinfo=timezone.utc)
         store = InMemoryCloudEventStore([_event("evt-1", created_at=now)])
         service = CloudSyncService(store)
+        service.claim(claim_token="agent-1", now=now, limit=10)
 
-        reflected = service.mark_reflected(event_id="evt-1", now=now + timedelta(minutes=1))
+        reflected = service.mark_reflected(event_id="evt-1", claim_token="agent-1", now=now + timedelta(minutes=1))
+        store.save(_event("evt-2", created_at=now))
+        service.claim(claim_token="agent-1", now=now, limit=10)
         failed = service.mark_failed(
-            event_id="evt-1",
+            event_id="evt-2",
+            claim_token="agent-1",
             error="Cell already has a value: F13",
             retryable=False,
             now=now + timedelta(minutes=2),
@@ -101,13 +105,14 @@ class CloudSyncHttpTest(unittest.TestCase):
     def test_reflected_endpoint_updates_event_status(self) -> None:
         now = datetime(2026, 6, 27, 9, 0, tzinfo=timezone.utc)
         service = CloudSyncService(InMemoryCloudEventStore([_event("evt-1", created_at=now)]))
+        service.claim(claim_token="agent-1", now=now)
 
         response = handle_request(
             HttpRequest(
                 method="POST",
                 path="/sync/reflected",
                 headers={"authorization": "Bearer token"},
-                body=json.dumps({"event_id": "evt-1", "now": now.isoformat()}),
+                body=json.dumps({"event_id": "evt-1", "claim_token": "agent-1", "now": now.isoformat()}),
             ),
             CloudConfig(slack_signing_secret="secret", sync_token="token"),
             sync_service=service,
@@ -120,6 +125,7 @@ class CloudSyncHttpTest(unittest.TestCase):
     def test_failed_endpoint_updates_event_status(self) -> None:
         now = datetime(2026, 6, 27, 9, 0, tzinfo=timezone.utc)
         service = CloudSyncService(InMemoryCloudEventStore([_event("evt-1", created_at=now)]))
+        service.claim(claim_token="agent-1", now=now)
 
         response = handle_request(
             HttpRequest(
@@ -129,6 +135,7 @@ class CloudSyncHttpTest(unittest.TestCase):
                 body=json.dumps(
                     {
                         "event_id": "evt-1",
+                        "claim_token": "agent-1",
                         "now": now.isoformat(),
                         "error": "Excel is busy",
                         "retryable": True,
@@ -144,6 +151,38 @@ class CloudSyncHttpTest(unittest.TestCase):
         self.assertEqual(body["event"]["sync_status"], "failed")
         self.assertTrue(body["event"]["retryable"])
         self.assertEqual(body["event"]["error"], "Excel is busy")
+
+    def test_sync_endpoints_reject_wrong_claim_token(self) -> None:
+        now = datetime(2026, 6, 27, 9, 0, tzinfo=timezone.utc)
+        service = CloudSyncService(InMemoryCloudEventStore([_event("evt-1", created_at=now)]))
+        service.claim(claim_token="agent-1", now=now)
+
+        response = handle_request(
+            HttpRequest(
+                method="POST",
+                path="/sync/reflected",
+                headers={"authorization": "Bearer token"},
+                body=json.dumps({"event_id": "evt-1", "claim_token": "agent-2", "now": now.isoformat()}),
+            ),
+            CloudConfig(slack_signing_secret="secret", sync_token="token"),
+            sync_service=service,
+        )
+
+        self.assertEqual(response["statusCode"], 400)
+
+    def test_sync_endpoint_rejects_malformed_json(self) -> None:
+        response = handle_request(
+            HttpRequest(
+                method="POST",
+                path="/sync/claim",
+                headers={"authorization": "Bearer token"},
+                body="{",
+            ),
+            CloudConfig(slack_signing_secret="secret", sync_token="token"),
+            sync_service=CloudSyncService(InMemoryCloudEventStore()),
+        )
+
+        self.assertEqual(response["statusCode"], 400)
 
 
 def _event(

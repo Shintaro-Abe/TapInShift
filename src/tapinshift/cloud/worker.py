@@ -14,10 +14,10 @@ class CloudSyncClient(Protocol):
     def claim(self, *, claim_token: str, now: datetime, limit: int) -> list[CloudEvent]:
         raise NotImplementedError
 
-    def mark_reflected(self, *, event_id: str, now: datetime) -> None:
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> None:
         raise NotImplementedError
 
-    def mark_failed(self, *, event_id: str, error: str, retryable: bool, now: datetime) -> None:
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> None:
         raise NotImplementedError
 
 
@@ -47,12 +47,13 @@ class CloudExcelSynchronizer:
                 self._record_failure(event, error)
                 self.client.mark_failed(
                     event_id=event.event_id,
+                    claim_token=self.claim_token,
                     error=error,
                     retryable=_is_retryable_error(error),
                     now=now,
                 )
             else:
-                self.client.mark_reflected(event_id=event.event_id, now=now)
+                self.client.mark_reflected(event_id=event.event_id, claim_token=self.claim_token, now=now)
         return len(events)
 
     def _reflect_event(self, event: CloudEvent) -> None:

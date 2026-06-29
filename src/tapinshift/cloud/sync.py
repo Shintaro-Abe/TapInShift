@@ -14,6 +14,22 @@ class CloudEventStore(Protocol):
     def list_for_claim(self, *, now: datetime, claim_timeout: timedelta, limit: int) -> list[CloudEvent]:
         raise NotImplementedError
 
+    def claim_event(
+        self,
+        event: CloudEvent,
+        *,
+        claim_token: str,
+        now: datetime,
+        claim_timeout: timedelta,
+    ) -> CloudEvent | None:
+        raise NotImplementedError
+
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> CloudEvent:
+        raise NotImplementedError
+
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> CloudEvent:
+        raise NotImplementedError
+
     def save(self, event: CloudEvent) -> None:
         raise NotImplementedError
 
@@ -42,47 +58,31 @@ class CloudSyncService:
         candidates = self.store.list_for_claim(now=now, claim_timeout=self.claim_timeout, limit=normalized_limit)
         claimed = []
         for event in candidates:
-            updated = replace(
+            updated = self.store.claim_event(
                 event,
-                sync_status=SyncStatus.CLAIMED,
                 claim_token=claim_token,
-                claimed_at=now,
-                updated_at=now,
-                error=None,
+                now=now,
+                claim_timeout=self.claim_timeout,
             )
-            self.store.save(updated)
-            claimed.append(updated)
+            if updated is not None:
+                claimed.append(updated)
         return claimed
 
-    def mark_reflected(self, *, event_id: str, now: datetime) -> CloudEvent:
-        event = self._get_existing(event_id)
-        updated = replace(
-            event,
-            sync_status=SyncStatus.REFLECTED,
-            updated_at=now,
-            retryable=None,
-            error=None,
-        )
-        self.store.save(updated)
-        return updated
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> CloudEvent:
+        if not claim_token.strip():
+            raise ValueError("claim_token is required")
+        return self.store.mark_reflected(event_id=event_id, claim_token=claim_token, now=now)
 
-    def mark_failed(self, *, event_id: str, error: str, retryable: bool, now: datetime) -> CloudEvent:
-        event = self._get_existing(event_id)
-        updated = replace(
-            event,
-            sync_status=SyncStatus.FAILED,
-            updated_at=now,
-            retryable=retryable,
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> CloudEvent:
+        if not claim_token.strip():
+            raise ValueError("claim_token is required")
+        return self.store.mark_failed(
+            event_id=event_id,
+            claim_token=claim_token,
             error=error,
+            retryable=retryable,
+            now=now,
         )
-        self.store.save(updated)
-        return updated
-
-    def _get_existing(self, event_id: str) -> CloudEvent:
-        event = self.store.get(event_id)
-        if event is None:
-            raise KeyError(f"Cloud event not found: {event_id}")
-        return event
 
 
 class InMemoryCloudEventStore:
@@ -110,6 +110,54 @@ class InMemoryCloudEventStore:
     def save(self, event: CloudEvent) -> None:
         self._events[event.event_id] = event
 
+    def claim_event(
+        self,
+        event: CloudEvent,
+        *,
+        claim_token: str,
+        now: datetime,
+        claim_timeout: timedelta,
+    ) -> CloudEvent | None:
+        current = self._events.get(event.event_id)
+        if current is None:
+            return None
+        stale_before = now - claim_timeout
+        claimable = current.sync_status == SyncStatus.QUEUED or (
+            current.sync_status == SyncStatus.CLAIMED
+            and current.claimed_at is not None
+            and current.claimed_at <= stale_before
+        )
+        if not claimable:
+            return None
+        updated = replace(
+            current,
+            sync_status=SyncStatus.CLAIMED,
+            claim_token=claim_token,
+            claimed_at=now,
+            updated_at=now,
+            error=None,
+        )
+        self.save(updated)
+        return updated
+
+    def mark_reflected(self, *, event_id: str, claim_token: str, now: datetime) -> CloudEvent:
+        event = self._claimed_by(event_id, claim_token)
+        updated = replace(event, sync_status=SyncStatus.REFLECTED, updated_at=now, retryable=None, error=None)
+        self.save(updated)
+        return updated
+
+    def mark_failed(self, *, event_id: str, claim_token: str, error: str, retryable: bool, now: datetime) -> CloudEvent:
+        event = self._claimed_by(event_id, claim_token)
+        updated = replace(
+            event,
+            sync_status=SyncStatus.FAILED,
+            updated_at=now,
+            retryable=retryable,
+            error=error,
+        )
+        self.save(updated)
+        return updated
+
     def get(self, event_id: str) -> CloudEvent | None:
         return self._events.get(event_id)
 
@@ -124,3 +172,11 @@ class InMemoryCloudEventStore:
 
     def set_setting(self, slack_user_id: str, key: str, value: str, updated_at: datetime) -> None:  # noqa: ARG002
         self._settings[(slack_user_id, key)] = value
+
+    def _claimed_by(self, event_id: str, claim_token: str) -> CloudEvent:
+        event = self.get(event_id)
+        if event is None:
+            raise KeyError(f"Cloud event not found: {event_id}")
+        if event.sync_status != SyncStatus.CLAIMED or event.claim_token != claim_token:
+            raise ValueError(f"Cloud event is not claimed by this agent: {event_id}")
+        return event
