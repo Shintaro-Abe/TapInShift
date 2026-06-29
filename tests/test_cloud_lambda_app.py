@@ -277,7 +277,7 @@ class CloudLambdaAppTest(unittest.TestCase):
 
         saved = store.list_user_events("U123")
         self.assertEqual(response["statusCode"], 200)
-        self.assertEqual(json.loads(response["body"])["response_action"], "clear")
+        self.assertEqual(json.loads(response["body"]), {})
         self.assertEqual(saved[0].event_type, "day_edit")
         self.assertEqual(saved[0].clock_in, "09:00")
         self.assertIsNone(saved[0].clock_out)

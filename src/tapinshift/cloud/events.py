@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from enum import StrEnum
 
 from tapinshift.models import Classification, PunchType
@@ -89,7 +90,7 @@ def event_to_item(event: CloudEvent) -> dict[str, object]:
         _put_optional(item, "notice", event.classification.notice)
         _put_optional(item, "expense_item", event.classification.expense_item)
         _put_optional(item, "amount", event.classification.amount)
-        item["confidence"] = event.classification.confidence
+        item["confidence"] = Decimal(str(event.classification.confidence))
         item["needs_confirmation"] = event.classification.needs_confirmation
     _put_optional(item, "clock_in", event.clock_in)
     _put_optional(item, "clock_out", event.clock_out)

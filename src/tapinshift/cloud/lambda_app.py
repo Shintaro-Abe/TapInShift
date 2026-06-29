@@ -5,6 +5,7 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
@@ -144,7 +145,7 @@ def _handle_slack_request(
     if payload.get("type") == "view_submission" and slack_service is not None:
         event = _record_view_submission(payload, slack_service, effective_client)
         if event is not None:
-            return _json_response(200, {"response_action": "clear", "event": event_to_item(event)})
+            return _json_response(200, {})
 
     return _json_response(202, {"ok": True, "status": "accepted"})
 
@@ -348,8 +349,14 @@ def _json_response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
     return {
         "statusCode": status_code,
         "headers": {"content-type": "application/json; charset=utf-8"},
-        "body": json.dumps(body, ensure_ascii=False),
+        "body": json.dumps(body, ensure_ascii=False, default=_json_default),
     }
+
+
+def _json_default(value: object) -> object:
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral_value() else float(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 def _build_runtime_services() -> tuple[CloudSyncService | None, CloudSlackService | None]:

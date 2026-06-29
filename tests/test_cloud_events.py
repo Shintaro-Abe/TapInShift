@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 import unittest
 
 from tapinshift.cloud.events import CloudEvent, CloudEventType, SyncStatus, event_to_item, item_to_event, setting_item
@@ -58,6 +59,7 @@ class CloudEventItemTest(unittest.TestCase):
         self.assertEqual(item["notice"], "アレア品川")
         self.assertEqual(item["expense_item"], "南平⇔市ヶ谷")
         self.assertEqual(item["amount"], 1134)
+        self.assertEqual(item["confidence"], Decimal("0.9"))
         self.assertFalse(item["needs_confirmation"])
 
     def test_setting_item_uses_user_setting_sort_key(self) -> None:
