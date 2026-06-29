@@ -147,7 +147,7 @@ TapInShift は、Slack の App Home から出勤・退勤を記録し、ロー�
 - Slack App Home を開くと、任意メモ入力欄、出勤ボタン、退勤ボタン、日付選択、丸め単位選択が表示される。
 - 出勤ボタンを押すと、対象日の出勤列へ時刻が書き込まれる。
 - 退勤ボタンを押すと、対象日の退勤列へ時刻が書き込まれる。
-- 丸め単位を選択すると、SQLite に保存され、以降の打刻時刻へ適用される。
+- 丸め単位を選択すると、クラウド運用時は DynamoDB に保存され、以降の打刻時刻へ適用される。ローカル Bolt 運用時は SQLite に保存される。
 - メモ反映で空メモの場合、分類処理は行われず失敗として保存される。
 - ローカルルールで分類できない場合、確認待ちとして保存される。
 - 分類結果が確認待ちの場合、Excel へ反映せず SQLite に `needs_confirmation` として保存される。
@@ -174,7 +174,7 @@ TapInShift は、Slack の App Home から出勤・退勤を記録し、ロー�
 
 - SQLite に打刻イベントを保存する。
 - SQLite に手動編集履歴を保存する。
-- SQLite に App Home で変更した丸め単位を保存する。
+- ローカル Bolt 運用では SQLite に App Home で変更した丸め単位を保存する。
 - 打刻イベントは Slack イベント ID により重複更新できる。
 - DynamoDB にクラウド受付イベント、丸め設定、同期状態を保存する。
 
@@ -202,7 +202,8 @@ TapInShift は、Slack の App Home から出勤・退勤を記録し、ロー�
 
 - Slack受付はAWS Lambda Function URLで行う。
 - Windows Agent停止中のイベントはDynamoDBに未同期として残す。
-- Windows Agent起動後に未同期イベントをclaimしてExcelへ反映する。
+- Windows Agent起動後に未同期イベントを条件付きclaimしてExcelへ反映する。
+- 反映成功・失敗報告は、claim時に保存された `claim_token` が一致する場合だけ受け付ける。
 
 ### 保守性
 

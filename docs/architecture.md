@@ -72,7 +72,7 @@ graph TD
 | `slack` | Slack token の環境変数名 |
 | `cloud_sync` | クラウド同期エンドポイント、token、ポーリング間隔 |
 
-`time_rounding.mode` は起動時の初期値である。Slack App Home で丸め単位を変更した場合、SQLite の `app_settings` に保存された値が以降の打刻で優先される。
+`time_rounding.mode` は起動時の初期値である。クラウド運用では Slack App Home で変更した丸め単位を DynamoDB に保存し、以降のクラウド受付打刻で優先する。ローカル Bolt 運用では SQLite の `app_settings` に保存された値を優先する。
 
 ## 6. 秘密情報
 
@@ -134,7 +134,8 @@ graph LR
 - Excel 反映に失敗しても打刻イベントは SQLite に保存する。
 - 失敗内容は `error` として保存する。
 - Slack UI で変更した丸め単位は DynamoDB に保存し、以降のクラウド受付打刻へ適用する。
-- Windows Agent は `queued` イベントを `claimed` にしてから処理し、成功時は `reflected`、失敗時は `failed` をクラウドへ返す。
+- Windows Agent は `queued` イベントを条件付き更新で `claimed` にしてから処理し、成功時は `reflected`、失敗時は `failed` をクラウドへ返す。
+- `reflected` / `failed` への更新は、claim時に保存した `claim_token` が一致する場合だけ受け付ける。
 - 手動編集で Excel を上書きして復旧する。
 - v1 では自動リトライは実装しない。
 
@@ -162,4 +163,4 @@ graph LR
 .venv/bin/tapinshift-agent --config config/config.local.json
 ```
 
-実機確認では Slack App Home 表示、丸め単位選択、出勤、退勤、日付編集、Excel 反映、失敗時ログ保存を確認する。
+実機確認では Slack App Home 表示、丸め単位選択、出勤、退勤、メモ反映、日付編集、Excel 反映、失敗時ログ保存、Windows再起動後の常駐同期を確認する。

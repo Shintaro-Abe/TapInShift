@@ -145,6 +145,8 @@ queued
 
 Windows Agent は `queued` を直接処理しない。同期 API の claim 処理で `claimed` に変更できたイベントだけを処理する。
 
+claim 処理は DynamoDB の条件付き `UpdateItem` で行い、同じイベントを複数Agentが同時にclaimしないようにする。反映成功・失敗報告では `event_id` と `claim_token` を送信し、対象イベントが `claimed` かつ `claim_token` 一致の場合だけ `reflected` / `failed` へ更新する。
+
 `claimed` のまま一定時間更新されないイベントは、再同期対象へ戻せるようにする。
 
 ```text
@@ -203,7 +205,7 @@ Windows Agent は次のタイミングで同期する。
 2. claim できたイベントを取得する。
 3. イベント種別に応じて既存の Excel writer へ渡す。
 4. ローカル SQLite に反映試行を記録する。
-5. 成功または失敗をクラウド API へ返す。
+5. 成功または失敗を `claim_token` 付きでクラウド API へ返す。
 
 ## 13. 失敗処理
 

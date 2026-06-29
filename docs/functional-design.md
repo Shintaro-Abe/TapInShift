@@ -129,7 +129,7 @@ sequenceDiagram
 
 - JSON 設定ファイルを読み込む。
 - Excel、Slack、時刻丸め、SQLite、クラウド同期の設定を dataclass で保持する。
-- `time_rounding.mode` は設定ファイル上の初期値として扱い、Slack UI で変更された丸め単位は SQLite の `app_settings` が優先される。
+- `time_rounding.mode` は設定ファイル上の初期値として扱う。クラウド運用時は Slack UI で変更された丸め単位を DynamoDB の `SETTING#time_rounding.mode` に保存し、ローカル Bolt 運用時は SQLite の `app_settings` を優先する。
 - 秘密情報は環境変数名だけを設定ファイルに持ち、値は実行時に環境変数から取得する。
 
 ### 6.3 `slack_app.py`
@@ -173,7 +173,7 @@ sequenceDiagram
 - `lambda_app.py` は Slack HTTP Request URL、Slack署名検証、同期APIを処理する。
 - `business.py` はクラウド受付イベントの作成、丸め、分類、二重打刻検出を担当する。
 - `events.py` は DynamoDB 単一テーブルのイベント表現を担当する。
-- `dynamodb_store.py` は DynamoDB 永続化を担当する。
+- `dynamodb_store.py` は DynamoDB 永続化を担当し、claim と結果更新では条件付き `UpdateItem` を使う。
 - `worker.py` は Windows Agent 側で claim 済みイベントを Excel へ反映する。
 - `client.py` は Windows Agent から Lambda Function URL へ同期APIを呼び出す。
 
@@ -304,9 +304,9 @@ Slack 向け:
 
 Windows Agent 向け:
 
-- `POST /sync/claim`: `queued` または期限切れ `claimed` イベントを `claimed` にして返す。
-- `POST /sync/reflected`: Excel 反映成功を記録する。
-- `POST /sync/failed`: Excel 反映失敗と retryable を記録する。
+- `POST /sync/claim`: `queued` または期限切れ `claimed` イベントを条件付き更新で `claimed` にして返す。成功したイベントだけを返し、`claim_token` を保存する。
+- `POST /sync/reflected`: Excel 反映成功を記録する。対象イベントが `claimed` かつ `claim_token` が一致する場合だけ `reflected` に更新する。
+- `POST /sync/failed`: Excel 反映失敗と retryable を記録する。対象イベントが `claimed` かつ `claim_token` が一致する場合だけ `failed` に更新する。
 
 ## 11. エラー処理
 
@@ -316,5 +316,7 @@ Windows Agent 向け:
 | Excel パスワード未設定 | `--check-config` で MISSING |
 | Excel 対象日なし | 打刻または編集を failed として保存 |
 | 既存セルあり | 打刻を failed として保存 |
+| 空メモ | クラウド受付時点で failed として保存 |
 | メモ分類が曖昧 | Excel 反映せず needs_confirmation として保存 |
-| 金額入力不正 | 手動編集を failed として保存 |
+| 金額入力不正 | 日別編集を failed として保存し、Slackリクエスト自体は正常応答する |
+| sync API の malformed JSON | 400 を返す |

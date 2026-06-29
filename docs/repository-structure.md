@@ -90,6 +90,7 @@ TapInShift/
 | `excel_writer.py` | xlwings による Excel 書き込み |
 | `storage.py` | SQLite 初期化、保存、取得 |
 | `time_rounding.py` | 時刻丸め |
+| `cloud/` | Lambda HTTP受付、DynamoDBキュー、Windows Agent同期処理 |
 
 ## 8. `tests/`
 
@@ -103,6 +104,8 @@ TapInShift/
 | `test_time_rounding.py` | 時刻丸め |
 | `test_service.py` | サービス層の接続 |
 | `test_slack_app.py` | Slack App Home view 構造 |
+| `test_cloud_*.py` | クラウド受付、DynamoDB変換、同期API、Windows Agent同期 |
+| `test_dynamodb_store.py` | DynamoDBストアの条件付きclaimと設定保存 |
 
 テストファイル名は `test_*.py` とする。
 

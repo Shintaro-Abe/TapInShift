@@ -28,6 +28,7 @@
 | クラウドキュー | cloud queue | Slack 受付イベントを Windows Agent 起動後に処理するための DynamoDB 保存領域 |
 | 同期 | sync | クラウドキューのイベントをローカル Excel へ反映し、結果をクラウドへ返す処理 |
 | claim | claim | 未同期イベントを特定の Windows Agent が処理対象として確保すること |
+| claim token | `claim_token` | claimしたWindows Agentを識別し、反映結果更新の所有者確認に使う値 |
 | 未同期 | queued | Slackで受け付け済みだが、Windows Agentがまだ処理していない状態 |
 | 処理中 | claimed | Windows Agentがclaim済みで、Excel反映中または結果報告前の状態 |
 | 手動編集 | manual edit | Slack の編集モーダルから対象日を上書きする操作 |
@@ -73,7 +74,7 @@
 | `SlackConfig` | dataclass | Slack token 設定 |
 | `CloudSyncConfig` | dataclass | クラウド同期設定 |
 | `CloudEvent` | dataclass | クラウドキュー上の同期イベント |
-| `CloudSyncService` | class | claim と同期結果更新 |
+| `CloudSyncService` | class | claim と claim token 付き同期結果更新 |
 | `CloudExcelSynchronizer` | class | claim 済みイベントを Excel へ反映する同期ワーカー |
 | `PunchService` | class | 打刻・編集の業務サービス |
 | `EventStore` | class | SQLite 永続化 |
@@ -109,7 +110,8 @@
 | `time_rounding.direction` | 丸め方向 |
 | `time_rounding.clock_in_direction` | 出勤時刻の丸め方向 |
 | `time_rounding.clock_out_direction` | 退勤時刻の丸め方向 |
-| `app_settings.time_rounding.mode` | Slack UI で選択した丸め単位 |
+| `SETTING#time_rounding.mode` | クラウド運用時にSlack UIで選択した丸め単位 |
+| `app_settings.time_rounding.mode` | ローカル Bolt 運用時にSlack UIで選択した丸め単位 |
 | `cloud_sync.endpoint` | Lambda Function URL |
 | `cloud_sync.endpoint_env` | Lambda Function URL を読む環境変数名 |
 | `cloud_sync.token_env` | 同期 API token を読む環境変数名 |

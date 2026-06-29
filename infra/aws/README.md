@@ -7,7 +7,7 @@ This directory contains the AWS serverless baseline for cloud queue sync.
 - Lambda Function URL
 - DynamoDB table `TapInShiftEvents`
 - GSI `GSI1` for `SYNC#queued` and `SYNC#claimed`
-- Lambda execution role with DynamoDB read/write/query access
+- Lambda execution role with DynamoDB get/put/update/query access
 
 ## Deploy Outline
 
